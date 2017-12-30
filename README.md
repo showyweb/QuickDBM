@@ -23,6 +23,11 @@ class last_command_db_c //В этом классе описывается стр
 
 class last_command //Пример класса с использованием QuickDBM
 {
+    function unit_res($res)
+    {
+        return is_null($res) ? $res : $res[0];
+    }
+
     function get($chat_id, $key = null)
     {
         $new_id = qdbm::set_table(last_command_db_c::$tab_name);
