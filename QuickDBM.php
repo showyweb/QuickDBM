@@ -1,7 +1,7 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 1.0.0
+ * Version: 1.2.0
  * Author:  Novojilov Pavel Andreevich
  * Support: http://SHOWYWEB.ru
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
@@ -423,6 +423,46 @@ class qdbm_where
         return $this;
     }
 
+    /**
+     * @link https://dev.mysql.com/doc/refman/5.5/en/fulltext-boolean.html
+     * @param string|array $column_name_or_arr_inf
+     * @param $value string Не фильтрует это значение на атаки XSS и SQL инъекции
+     * @param bool $before_where_conjunction
+     * @param null $sql_function_name_for_column
+     * @param bool $xss_filter_column
+     * @param bool $value_quotes
+     * @param bool $magic_quotes
+     * @return $this
+     */
+    function full_text_search_bm_not_safe($column_name_or_arr_inf, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
+    {
+        $column = qdbm_ext_tools::get_column_name($column_name_or_arr_inf);
+        $value_quotes = $value_quotes ? "'" : "";
+        if($xss_filter_column)
+            $column = qdbm_ext_tools::xss_filter($column);
+        $this->push("MATCH (" . $this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ") AGAINST ( $value_quotes$value$value_quotes  IN BOOLEAN MODE )", $before_where_conjunction);
+        return $this;
+    }
+
+    /**
+     * @param $column_name_or_arr_inf
+     * @param $value string Не фильтрует это значение на атаки XSS и SQL инъекции
+     * @param bool $before_where_conjunction
+     * @param null $sql_function_name_for_column
+     * @param bool $xss_filter_column
+     * @param bool $value_quotes
+     * @param bool $magic_quotes
+     * @return $this
+     */
+    function regexp_not_safe($column_name_or_arr_inf, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
+    {
+        $column = qdbm_ext_tools::get_column_name($column_name_or_arr_inf);
+        $value_quotes = $value_quotes ? "'" : "";
+        if($xss_filter_column)
+            $column = qdbm_ext_tools::xss_filter($column);
+        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . " REGEXP $value_quotes$value$value_quotes", $before_where_conjunction);
+        return $this;
+    }
 }
 
 class qdbm_select_conjunction
@@ -1247,7 +1287,7 @@ class qdbm
             qdbm_ext_tools::error("Группы не существует");
         if($res == null and !$force_edit)
             qdbm_ext_tools::error("Группы не существует");
-        return self::group($id, $title, $description, $parent_id, $force_edit ? qdbm_group_type::standard : $res[0]['qdbm_group_type']);
+        return self::group($id, $title, $description, $parent_id, $force_edit ? qdbm_group_type::standard : $res[0][qdbm_column_names::group_type]);
     }
 
     private static function group($id = null, $title, $description, $parent_id, $group_type, $column_name_or_arr_inf = null)
@@ -1335,7 +1375,7 @@ class qdbm
             $group_inf = self::get_group_any_type($id);
         $stp_group_id = 0;
         $filters_table = null;
-        if(self::type_is_filter($group_inf[0]['qdbm_group_type'])) {
+        if(self::type_is_filter($group_inf[0][qdbm_column_names::group_type])) {
             $table = self::$table;
             if($group_inf[0][qdbm_column_names::parent_id]) {
                 $stp_group_id = self::get_stp_group_for_filter($id)[0][qdbm_column_names::id];
