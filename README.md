@@ -37,7 +37,7 @@ class last_command //Пример класса с использованием Q
         $where->equally(last_command_db_c::chat_id, $chat_id);
         if(!is_null($key))
             $where->equally(last_command_db_c::key, $key);
-        $res = qdbm::get_rows();
+        $res = qdbm::get_rows($where);
         return $this->unit_res($res);
     }
 
