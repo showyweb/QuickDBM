@@ -5,7 +5,6 @@
 <?php
 require_once "QuickDBM.php";
 qdbm::set_mysqli_auth([
-        'table_prefix' => '',
         'db_name' => '',
         'host' => '',
         'user' => '',
