@@ -8,7 +8,8 @@ qdbm::set_mysqli_auth([
         'db_name' => '',
         'host' => '',
         'user' => '',
-        'password' => ''
+        'password' => '',
+        'table_prefix' => ''
     ]);//Настройка подключения к БД
 
 class last_command_db_c //В этом классе описывается структура одной из таблиц.
@@ -23,9 +24,8 @@ class last_command_db_c //В этом классе описывается стр
 class last_command //Пример класса с использованием QuickDBM
 {
        private $db = null;
-        public $db_c = null;
-    
-        /** @noinspection PhpMissingParentConstructorInspection */
+       public $db_c = null;
+     
         public function __construct()
         {
             $this->db_c = new last_command_db_c();
@@ -58,7 +58,7 @@ class last_command //Пример класса с использованием Q
         {
             $db = $this->db;
             if($xss_filter)
-                $val = $this->et::xss_filter($val);
+                $val = qdbm_ext_tools::xss_filter($val);
             $new_id = $db->get_nii();
             $res = $this->get($chat_id, $key, true);
             if(!is_null($res))
