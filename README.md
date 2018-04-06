@@ -14,56 +14,86 @@ qdbm::set_mysqli_auth([
 
 class last_command_db_c //В этом классе описывается структура одной из таблиц.
 {
-    static $tab_name = "last_command";//Название таблицы
-    const chat_id = array('name' => 'chat_id', 'type' => qdbm_type_column::unsigned_big_int, 'xss_filter_in_value' => true, 'new_column_add_index' => true);
-    const key = array('name' => 'key', 'type' => qdbm_type_column::small_string, 'xss_filter_in_value' => true, 'new_column_add_index' => true);
-    const last_command = array('name' => 'last_command', 'type' => qdbm_type_column::small_string, 'xss_filter_in_value' => true, 'new_column_add_index' => false);
-    const last_modify = array('name' => 'last_modify', 'type' => qdbm_type_column::datetime, 'xss_filter_in_value' => false, 'new_column_add_index' => true);
+        public $tab_name = "mb_last_command";
+        const chat_id = array('type' => qdbm_type_column::unsigned_big_int, 'is_xss_filter' => true, 'is_add_index' => true);
+        const key = array('type' => qdbm_type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
+        const last_command = array('type' => qdbm_type_column::small_string, 'is_xss_filter' => false, 'is_add_index' => false);
+        const last_modify = array('type' => qdbm_type_column::datetime, 'is_xss_filter' => false, 'is_add_index' => true);
 }
 
 class last_command //Пример класса с использованием QuickDBM
 {
-    function unit_res($res)
-    {
-        return is_null($res) ? $res : $res[0];
-    }
-
-    function get($chat_id, $key = null)
-    {
-        $new_id = qdbm::set_table(last_command_db_c::$tab_name);
-        if($new_id == 1)
-            return null;
-        $where = new qdbm_where();
-        $where->equally(last_command_db_c::chat_id, $chat_id);
-        if(!is_null($key))
-            $where->equally(last_command_db_c::key, $key);
-        $res = qdbm::get_rows($where);
-        return $this->unit_res($res);
-    }
-
-    function set($chat_id, $val, $key = null)
-    {
-        $new_id = qdbm::set_table(last_command_db_c::$tab_name);
-        $res = $this->get($chat_id);
-        if(!is_null($res))
-            $new_id = $res[qdbm_column_names::id];
-        qdbm::set_insert_id($new_id);
-        qdbm::insert(last_command_db_c::chat_id, $chat_id);
-        qdbm::insert(last_command_db_c::last_command, $val);
-        if(!is_null($key))
-            qdbm::insert(last_command_db_c::key, $key);
-        qdbm::insert(last_command_db_c::last_modify, qdbm_ext_tools::get_current_datetime());
-    }
-
-    function clear()
-    {
-        $time_filter = 60 * 60;
-        $new_id = qdbm::set_table(last_command_db_c::$tab_name);
-        if($new_id == 1)
-            return;
-        $where = new qdbm_where();
-        $where->less(last_command_db_c::last_modify, "DATE_SUB(NOW(), INTERVAL $time_filter SECOND)", true, null, false, false, false);
-        qdbm::remove_rows($where);
-    }
+       private $db = null;
+        public $db_c = null;
+    
+        /** @noinspection PhpMissingParentConstructorInspection */
+        public function __construct()
+        {
+            $this->db_c = new last_command_db_c();
+            $this->db = new qdbm($this->db_c);
+        }
+    
+        private function gen_where($chat_id = null, $key = null)
+        {
+            $where = new qdbm_where();
+            if(!is_null($chat_id))
+                $where->equally('chat_id', $chat_id);
+            if(!is_null($key))
+                $where->equally('key', $key);
+            else
+                $where->is_null('key');
+            return $where;
+        }
+    
+        function get($chat_id, $key = null, $is_raw_return = false)
+        {
+            $db = $this->db;
+            $where = $this->gen_where($chat_id, $key);
+            $res = $db->get_rows(null, $where);
+            if($is_raw_return)
+                return $res;
+            return is_null($res) ? null : $res[0]['last_command'];
+        }
+    
+        function set($chat_id, $val, $key = null, $xss_filter = true)
+        {
+            $db = $this->db;
+            if($xss_filter)
+                $val = $this->et::xss_filter($val);
+            $new_id = $db->get_nii();
+            $res = $this->get($chat_id, $key, true);
+            if(!is_null($res))
+                $new_id = $res[0]['id'];
+    
+            $rec = [
+                'chat_id' => $chat_id,
+                'last_command' => $val,
+                'key' => $key,
+                'last_modify' => qdbm_ext_tools::get_current_datetime()
+            ];
+            $db->insert($rec, $new_id);
+        }
+    
+        function del($chat_id, $key = null)
+        {
+            $db = $this->db;
+            $where = $this->gen_where($chat_id, $key);
+            $db->remove_rows($where);
+        }
+    
+        function clear()
+        {
+            $time_filter = 24 * 60 * 60;
+            $cur_time = time();
+            ini_set('max_execution_time', 0);
+            $time_lock_path = 'last_command_time_lock';
+            if(file_exists($time_lock_path) && bcsub($cur_time, filemtime($time_lock_path)) < 1 * 60 * 60)
+                return;
+            file_put_contents($time_lock_path, '');
+            $db = $this->db;
+            $where = new qdbm_where();
+            $where->less('last_modify', "DATE_SUB(NOW(), INTERVAL $time_filter SECOND)", true, null, false, false, false);
+            $db->remove_rows($where);
+        }
 }
 ```
