@@ -1,24 +1,23 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 2.4.0
+ * Version: 3.0.0
  * Author:  Novojilov Pavel Andreevich
  * Support: http://SHOWYWEB.ru
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
  * Copyright (c) 2017 Pavel Novojilov
  */
 
-/**
- *
- */
-abstract class qdbm_order
+namespace qdbm;
+
+abstract class order
 {
     const asc = 1;
     const desc = 2;
     const rand = 3;
 }
 
-abstract class qdbm_type_column
+abstract class type_column
 {
     const small_string = 'small_string'; //255 len
     const string = "string";
@@ -31,7 +30,7 @@ abstract class qdbm_type_column
     const decimal_auto = 'decimal_auto';
 }
 
-abstract class qdbm_group_type
+abstract class group_type
 {
     const standard = "standard";
     const expand = 'expand';
@@ -39,7 +38,7 @@ abstract class qdbm_group_type
     const all = 'all';
 }
 
-abstract class qdbm_filter_type
+abstract class filter_type
 {
     const string_filter = "string_filter";
     const int_filter = "int_filter";
@@ -49,7 +48,7 @@ abstract class qdbm_filter_type
 }
 
 
-class qdbm_ext_tools
+class ext_tools
 {
     static function remove_nbsp($str)
     {
@@ -174,19 +173,19 @@ class qdbm_ext_tools
 
     static function error($mes)
     {
-        throw new exception($mes);
+        throw new \exception($mes);
     }
 
     static function get_constants_in_class($class_name_or_object)
     {
-        $refl = new ReflectionClass($class_name_or_object);
+        $refl = new \ReflectionClass($class_name_or_object);
         return $refl->getConstants();
 
     }
 
     static function get_static_properties_in_class($class_name_or_object)
     {
-        $refl = new ReflectionClass($class_name_or_object);
+        $refl = new \ReflectionClass($class_name_or_object);
         return $refl->getStaticProperties();
     }
 
@@ -271,8 +270,8 @@ class qdbm_ext_tools
         $tmp_int_size = 0;
         $tmp_scale_size = 0;
         $tmp_arr = explode('.', $value);
-        $tmp_int_size = qdbm_ext_tools::utf8_strlen($tmp_arr[0]);
-        $tmp_scale_size = (count($tmp_arr) == 2) ? qdbm_ext_tools::utf8_strlen($tmp_arr[1]) : 0;
+        $tmp_int_size = ext_tools::utf8_strlen($tmp_arr[0]);
+        $tmp_scale_size = (count($tmp_arr) == 2) ? ext_tools::utf8_strlen($tmp_arr[1]) : 0;
         $tmp_int_size += $tmp_scale_size;
         return [$tmp_int_size, $tmp_scale_size];
     }
@@ -288,7 +287,7 @@ class qdbm_ext_tools
 }
 
 
-class qdbm_where
+class where
 {
     private $where = null;
 
@@ -297,17 +296,17 @@ class qdbm_where
         return $this;
     }
 
-    function get()
+    function _get()
     {
         return $this->where;
     }
 
-    private function push($text, $before_where_conjunction)
+    private function push($text, $before_use_and)
     {
         if(is_null($this->where))
             $this->where = $text;
         else
-            $this->where .= ($before_where_conjunction ? ' AND ' : ' OR ') . $text;
+            $this->where .= ($before_use_and ? ' AND ' : ' OR ') . $text;
     }
 
 
@@ -315,124 +314,124 @@ class qdbm_where
     {
         $column = $column_name;
         $magic_quotes = $magic_quotes ? '`' : '';
-        $sql_function_name_for_column = qdbm_ext_tools::xss_filter($sql_function_name_for_column);
+        $sql_function_name_for_column = ext_tools::xss_filter($sql_function_name_for_column);
         return is_null($sql_function_name_for_column) ? $magic_quotes . $column . $magic_quotes : $sql_function_name_for_column . '(' . $magic_quotes . $column . $magic_quotes . ')';
     }
 
 
-    function push_where(qdbm_where $object, $before_where_conjunction = true)
+    function push_where(where $object, $before_use_and = true)
     {
-        $where_text = $object->get();
+        $where_text = $object->_get();
         if($where_text == "")
             return $this;
         $where_text = '(' . $where_text . ')';
-        $this->push($where_text, $before_where_conjunction);
+        $this->push($where_text, $before_use_and);
         return $this;
     }
 
-    function equally($column_name, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function equally($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
         $column = $column_name;
-        if(gettype($value) == qdbm_type_column::bool)
+        if(gettype($value) == type_column::bool)
             $value = $value ? 1 : 0;
         if($xss_filter) {
-            $column = qdbm_ext_tools::xss_filter($column);
-            $value = qdbm_ext_tools::xss_filter($value);
+            $column = ext_tools::xss_filter($column);
+            $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "=$value_quotes$value$value_quotes", $before_where_conjunction);
+        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "=$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function not_equally($column_name, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function not_equally($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
         $column = $column_name;
-        if(gettype($value) == qdbm_type_column::bool)
+        if(gettype($value) == type_column::bool)
             $value = $value ? 1 : 0;
         if($xss_filter) {
-            $column = qdbm_ext_tools::xss_filter($column);
-            $value = qdbm_ext_tools::xss_filter($value);
+            $column = ext_tools::xss_filter($column);
+            $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "!=$value_quotes$value$value_quotes", $before_where_conjunction);
+        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "!=$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function more($column_name, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function more($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
         $column = $column_name;
         if($xss_filter) {
-            $column = qdbm_ext_tools::xss_filter($column);
-            $value = qdbm_ext_tools::xss_filter($value);
+            $column = ext_tools::xss_filter($column);
+            $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ">$value_quotes$value$value_quotes", $before_where_conjunction);
+        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ">$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function more_or_equally($column_name, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function more_or_equally($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
         $column = $column_name;
         if($xss_filter) {
-            $column = qdbm_ext_tools::xss_filter($column);
-            $value = qdbm_ext_tools::xss_filter($value);
+            $column = ext_tools::xss_filter($column);
+            $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ">=$value_quotes$value$value_quotes", $before_where_conjunction);
+        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ">=$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function less($column_name, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function less($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
         $column = $column_name;
         if($xss_filter) {
-            $column = qdbm_ext_tools::xss_filter($column);
-            $value = qdbm_ext_tools::xss_filter($value);
+            $column = ext_tools::xss_filter($column);
+            $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "<$value_quotes$value$value_quotes", $before_where_conjunction);
+        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "<$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function less_or_equally($column_name, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function less_or_equally($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
         $column = $column_name;
         if($xss_filter) {
-            $column = qdbm_ext_tools::xss_filter($column);
-            $value = qdbm_ext_tools::xss_filter($value);
+            $column = ext_tools::xss_filter($column);
+            $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "<=$value_quotes$value$value_quotes", $before_where_conjunction);
+        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "<=$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function is_null($column_name, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter = true)
+    function is_null($column_name, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true)
     {
         $column = $column_name;
         if($xss_filter)
-            $column = qdbm_ext_tools::xss_filter($column);
-        $this->push($this->gen_column($column, $sql_function_name_for_column) . " IS NULL", $before_where_conjunction);
+            $column = ext_tools::xss_filter($column);
+        $this->push($this->gen_column($column, $sql_function_name_for_column) . " IS NULL", $before_use_and);
         return $this;
     }
 
-    function is_not_null($column_name, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter = true)
+    function is_not_null($column_name, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true)
     {
         $column = $column_name;
         if($xss_filter)
-            $column = qdbm_ext_tools::xss_filter($column);
-        $this->push($this->gen_column($column, $sql_function_name_for_column) . " IS NOT NULL", $before_where_conjunction);
+            $column = ext_tools::xss_filter($column);
+        $this->push($this->gen_column($column, $sql_function_name_for_column) . " IS NOT NULL", $before_use_and);
         return $this;
     }
 
-    function partial_like($column_name, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function partial_like($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
         $column = $column_name;
         $value_quotes = $value_quotes ? "'" : "";
         if($xss_filter) {
-            $column = qdbm_ext_tools::xss_filter($column);
-            $value = qdbm_ext_tools::xss_filter($value);
+            $column = ext_tools::xss_filter($column);
+            $value = ext_tools::xss_filter($value);
         }
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . " LIKE $value_quotes%$value%$value_quotes", $before_where_conjunction);
+        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . " LIKE $value_quotes%$value%$value_quotes", $before_use_and);
         return $this;
     }
 
@@ -440,102 +439,269 @@ class qdbm_where
      * @link https://dev.mysql.com/doc/refman/5.5/en/fulltext-boolean.html
      * @param string $column_name
      * @param $value string Не фильтрует это значение на атаки XSS и SQL инъекции
-     * @param bool $before_where_conjunction
+     * @param bool $before_use_and
      * @param null $sql_function_name_for_column
      * @param bool $xss_filter_column
      * @param bool $value_quotes
      * @param bool $magic_quotes
      * @return $this
      */
-    function full_text_search_bm_not_safe($column_name, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
+    function full_text_search_bm_not_safe($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
     {
         $column = $column_name;
         $value_quotes = $value_quotes ? "'" : "";
         if($xss_filter_column)
-            $column = qdbm_ext_tools::xss_filter($column);
-        $this->push("MATCH (" . $this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ") AGAINST ( $value_quotes$value$value_quotes  IN BOOLEAN MODE )", $before_where_conjunction);
+            $column = ext_tools::xss_filter($column);
+        $this->push("MATCH (" . $this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ") AGAINST ( $value_quotes$value$value_quotes  IN BOOLEAN MODE )", $before_use_and);
         return $this;
     }
 
     /**
      * @param $column_name
      * @param $value string Не фильтрует это значение на атаки XSS и SQL инъекции
-     * @param bool $before_where_conjunction
+     * @param bool $before_use_and
      * @param null $sql_function_name_for_column
      * @param bool $xss_filter_column
      * @param bool $value_quotes
      * @param bool $magic_quotes
      * @return $this
      */
-    function regexp_not_safe($column_name, $value, $before_where_conjunction = true, $sql_function_name_for_column = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
+    function regexp_not_safe($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
     {
         $column = $column_name;
         $value_quotes = $value_quotes ? "'" : "";
         if($xss_filter_column)
-            $column = qdbm_ext_tools::xss_filter($column);
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . " REGEXP $value_quotes$value$value_quotes", $before_where_conjunction);
+            $column = ext_tools::xss_filter($column);
+        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . " REGEXP $value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 }
 
-class qdbm_select_conjunction
+class select_exp
 {
-    private $select = "";
+    private $args = [];
+    private $sql = "";
 
     function __construct()
     {
         return $this;
     }
 
-    function add_column($column_name, $as_column_name = null, $sql_function_name_for_column = null, $column_in_custom_table_name = null, $column_name_xss_filter = true, $column_name_magic_quotes = true)
+    /**
+     * @param null|array $args Можно передавать следующие аргументы в этом массиве
+     * @param null|string $column_name
+     * @param null|string $as_column_name [optional]
+     * @param null|string $sql_function_name_for_column [optional]
+     * @param null|string $custom_table_name [optional]
+     * @param true|bool $column_name_xss_filter [optional]
+     * @param true|bool $column_name_magic_quotes [optional]
+     * @return $this
+     * @throws \ReflectionException
+     */
+    function add_column($args, $column_name = null, $as_column_name = null, $sql_function_name_for_column = null, $custom_table_name = null, $column_name_xss_filter = true, $column_name_magic_quotes = true)
+    {
+        $reflector = new \ReflectionClass(__CLASS__);
+        $parameters = $reflector->getMethod(__FUNCTION__)->getParameters();
+        if(!is_null($args)) {
+            extract($args);
+            unset($args);
+        }
+        $args = [];
+        foreach ($parameters as $parameter) {
+            if($parameter->name === "args")
+                continue;
+            $args[$parameter->name] = ${$parameter->name};
+        }
+        $this->args[] = ['add_column', $args];
+        return $this;
+    }
+
+    private function _add_column($column_name, $as_column_name = null, $sql_function_name_for_column = null, $custom_table_name = null, $column_name_xss_filter = true, $column_name_magic_quotes = true)
     {
         $column_name_magic_quotes = $column_name_magic_quotes ? '`' : '';
         if($column_name == "*" or !is_null($sql_function_name_for_column)) $column_name_magic_quotes = "";
         if($column_name_xss_filter)
-            $column_name = qdbm_ext_tools::xss_filter($column_name);
-        $as_column_name = qdbm_ext_tools::xss_filter($as_column_name);
-        $sql_function_name_for_column = qdbm_ext_tools::xss_filter($sql_function_name_for_column);
-        $column_in_custom_table_name = qdbm_ext_tools::xss_filter($column_in_custom_table_name);
-        $column_name = (is_null($column_in_custom_table_name) ? '' : $column_in_custom_table_name . '.') . $column_name_magic_quotes . $column_name . $column_name_magic_quotes;
-        if(!is_null($column_in_custom_table_name)) $column_name_magic_quotes = "";
-        $column_name = (is_null($sql_function_name_for_column) ? $column_name_magic_quotes . $column_name . $column_name_magic_quotes : $sql_function_name_for_column . '(' . $column_name_magic_quotes . $column_name . $column_name_magic_quotes . ')') . (is_null($as_column_name) ? '' : ' AS `' . $as_column_name . '`');
-        if($this->select != "")
-            $this->select .= ", ";
-        $this->select .= $column_name;
+            $column_name = ext_tools::xss_filter($column_name);
+        $as_column_name = ext_tools::xss_filter($as_column_name);
+        $sql_function_name_for_column = ext_tools::xss_filter($sql_function_name_for_column);
+        $custom_table_name = ext_tools::xss_filter($custom_table_name);
+        $column_name = (is_null($custom_table_name) ? '' : $custom_table_name . '.') . $column_name_magic_quotes . $column_name . $column_name_magic_quotes;
+        $column_name = (is_null($sql_function_name_for_column) ? $column_name : $sql_function_name_for_column . '(' . $column_name . ')') . (is_null($as_column_name) ? '' : ' AS `' . $as_column_name . '`');
+        if($this->sql != "")
+            $this->sql .= ", ";
+        $this->sql .= $column_name;
+    }
+
+    function add_sql($sql_fragment)
+    {
+        $this->args[] = ['add_sql', $sql_fragment];
         return $this;
     }
 
-    function get()
+    function _get($table_prefix)
     {
-        return $this->select;
+        $this->sql = "";
+        $select_args = &$this->args;
+        foreach ($select_args as $args) {
+            switch ($args[0]) {
+                case 'add_column':
+                    if(!is_null($args[1]['custom_table_name']))
+                        $args[1]['custom_table_name'] = $table_prefix . $args[1]['custom_table_name'];
+                    call_user_func_array(array($this, '_add_column'), $args[1]);
+                    break;
+                case 'add_sql':
+                    if($this->sql != "")
+                        $this->sql .= ", ";
+                    $this->sql .= $args[1];
+                    break;
+            }
+        }
+        return $this->sql;
     }
 }
 
-class qdbm_left_join_on
+class select_q
 {
+    private $args = [];
+
+    /** select_query
+     * @param array|null $args Можно передавать следующие аргументы в этом массиве
+     * @param where|null $where
+     * @param string|array $order_by
+     * @param int $order_method
+     * @param int $offset
+     * @param int $limit
+     * @param select_exp|null $select Параметры извлечения строк, если null (или не указано), то выбираются все столбцы
+     * @param string|null $group_by
+     * @param left_join_on|null $join
+     * @param int|null $group_id_for_join_filters
+     * @param bool $is_distinct
+     */
+    function __construct($args = null, where $where = null, $order_by = '_order', $order_method = order::asc, $offset = 0, $limit = 0, select_exp $select = null, $group_by = null, left_join_on $join = null, $group_id_for_join_filters = null, $is_distinct = false)
+    {
+        if(!is_null($args))
+            extract($args);
+        $reflector = new \ReflectionClass(__CLASS__);
+        $parameters = $reflector->getMethod(__FUNCTION__)->getParameters();
+
+        foreach ($parameters as $parameter) {
+            if($parameter->name === "args")
+                continue;
+            $this->args[$parameter->name] = ${$parameter->name};
+        }
+    }
+
+    private $cur_table = null;
+    private $table_prefix = null;
+
+    private function generate_sql(where $where = null, $order_by = '_order', $order_method = order::asc, $offset = 0, $limit = 0, select_exp $select = null, $group_by = null, left_join_on $join = null, $group_id_for_join_filters = null, $is_distinct = false)
+    {
+        $cur_table = $this->cur_table;
+        $table_prefix = $this->table_prefix;
+        $order_by = ext_tools::xss_filter($order_by);
+        $group_by = ext_tools::xss_filter($group_by);
+        $group_id_for_join_filters = ext_tools::xss_filter($group_id_for_join_filters);
+
+        if(!is_null($group_id_for_join_filters)) {
+            $filters_table = $cur_table . "_" . $group_id_for_join_filters . "_filters";
+            if(db::check_table($filters_table)) {
+                if(is_null($join))
+                    $join = new left_join_on;
+                $join->push($cur_table, $filters_table, 'id', 'id');
+            }
+        }
+        $order_by = ($order_by == null) ? "_order" : $order_by;
+        $order_method = ($order_method == null) ? order::asc : $order_method;
+        $select = is_null($select) ? null : $select->_get($table_prefix);
+        $sql = "SELECT " . ($is_distinct ? "DISTINCT " : "") . (empty($select) ? '*' : $select) . " FROM `" . $cur_table . "` " . (is_null($join) ? '' : $join->_get($table_prefix) . ' ') . ((is_null($where) || is_null($where->_get())) ? "" : "WHERE " . $where->_get()) . " " . (is_null($group_by) ? '' : "GROUP BY $group_by ");
+        if(!is_array($order_by))
+            $order_by = [$order_by];
+        $i = 0;
+        foreach ($order_by as $value) {
+            $o_prefix = "ORDER BY ";
+            if($i !== 0)
+                $o_prefix = ", ";
+
+            switch ($order_method) {
+                case order::asc:
+                    $sql .= $o_prefix . "$value";
+                    break;
+                case order::desc:
+                    $sql .= $o_prefix . "$value DESC";
+                    break;
+                case order::rand:
+                    $sql .= $o_prefix . "rand()";
+                    break;
+            }
+            $i++;
+        }
+
+        if($limit != 0) {
+            $offset = intval($offset);
+            $limit = intval($limit);
+            $sql .= " LIMIT " . $offset . "," . $limit;
+        } elseif($offset != 0)
+            ext_tools::error("offset не может быть без limit");
+        return $sql;
+    }
+
+    function _get($cur_table, $table_prefix)
+    {
+        $this->cur_table = $cur_table;
+        $this->table_prefix = $table_prefix;
+        return call_user_func_array(array($this, 'generate_sql'), $this->args);
+    }
+}
+
+class left_join_on
+{
+    private $args = [];
     private $join = "";
 
-    function __construct($cur_table, $join_table, $column_name_in_current_table, $column_name_in_join_table)
+    function __construct()
     {
-        $join_table = qdbm_ext_tools::xss_filter($join_table);
-        $column_name_in_current_table = qdbm_ext_tools::xss_filter($column_name_in_current_table);
-        $column_name_in_join_table = qdbm_ext_tools::xss_filter($column_name_in_join_table);
-        $this->join .= "LEFT JOIN $join_table ON ($cur_table.$column_name_in_current_table=$join_table.$column_name_in_join_table) ";
         return $this;
     }
 
-    function push_join($cur_table, $join_table, $column_name_in_current_table_or_arr_inf, $column_name_in_join_table_or_arr_inf)
+    function push($cur_table, $join_table, $column_name_in_current_table, $column_name_in_join_table, select_q $derived_table = null, $as_table_name = null)
     {
-        return $this->__construct($cur_table, $join_table, $column_name_in_current_table_or_arr_inf, $column_name_in_join_table_or_arr_inf);
+        $reflector = new \ReflectionClass(__CLASS__);
+        $parameters = $reflector->getMethod(__FUNCTION__)->getParameters();
+
+        $args = array();
+        foreach ($parameters as $parameter) {
+            $args[$parameter->name] = ${$parameter->name};
+        }
+        $this->args[] = $args;
+        return $this;
     }
 
-    function get()
+    private function _push($cur_table, $join_table, $column_name_in_current_table, $column_name_in_join_table, select_q $derived_table = null, $as_table_name = null)
     {
+        $join_table = ext_tools::xss_filter($join_table);
+        $column_name_in_current_table = ext_tools::xss_filter($column_name_in_current_table);
+        $column_name_in_join_table = ext_tools::xss_filter($column_name_in_join_table);
+        $as_table_name = ext_tools::xss_filter($as_table_name);
+        if(is_null($as_table_name))
+            $as_table_name = $join_table;
+        if(is_null($derived_table))
+            $this->join .= "LEFT JOIN $join_table $as_table_name ON ($cur_table.$column_name_in_current_table=$as_table_name.$column_name_in_join_table) ";
+        else
+            $this->join .= "LEFT JOIN ({$derived_table->_get($join_table,"")}) $as_table_name ON ($cur_table.$column_name_in_current_table=$as_table_name.$column_name_in_join_table) ";
+    }
+
+    function _get($table_prefix)
+    {
+        $this->join = "";
+        $_args = &$this->args;
+        foreach ($_args as $args) {
+            $args['cur_table'] = $table_prefix . $args['cur_table'];
+            $args['join_table'] = $table_prefix . $args['join_table'];
+            call_user_func_array(array($this, '_push'), $args);
+        }
         return $this->join;
     }
-
 }
-
 
 /**
  * С помощью этого класса описывается структура таблицы.
@@ -570,7 +736,7 @@ class qdbm_left_join_on
  * Если в имени столбца присутствует префикс v_, то этот столбец будет расцениваться как виртуальный, qdbm его обрабатывать не будет.
  *
  */
-abstract class qdbm_schema
+abstract class schema
 {
     /**
      * Имя таблицы
@@ -580,12 +746,12 @@ abstract class qdbm_schema
     /**
      * id строки
      */
-    const id = array('type' => qdbm_type_column::unsigned_big_int, 'is_xss_filter' => true, 'is_add_index' => true);
+    const id = array('type' => type_column::unsigned_big_int, 'is_xss_filter' => true, 'is_add_index' => true);
 
     /**
      * Индекс порядка сортировки
      */
-    const _order = array('type' => qdbm_type_column::unsigned_big_int, 'is_xss_filter' => true, 'is_add_index' => true);
+    const _order = array('type' => type_column::unsigned_big_int, 'is_xss_filter' => true, 'is_add_index' => true);
 
     /**
      * qdbm_schema constructor.
@@ -598,13 +764,13 @@ abstract class qdbm_schema
             $this->tab_name = $tab_name;
 
         if(empty($this->tab_name))
-            qdbm_ext_tools::error("tab_name empty");
+            ext_tools::error("tab_name empty");
         return $this;
     }
 
     function get_columns()
     {
-        $constants = qdbm_ext_tools::get_constants_in_class($this);
+        $constants = ext_tools::get_constants_in_class($this);
         foreach ($constants as $key => $constant) {
             $this->{$key} = $key;
         }
@@ -614,20 +780,20 @@ abstract class qdbm_schema
 
 
 /**
- * @see qdbm_schema для групп и фильтров
+ * @see schema для групп и фильтров
  *
  * */
-class qdbm_gf_schema extends qdbm_schema
+class gf_schema extends schema
 {
-    const group_type = array('type' => qdbm_type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
-    const filter_type = array('type' => qdbm_type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
-    const column_name = array('type' => qdbm_type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
-    const parent_id = array('type' => qdbm_type_column::unsigned_int, 'is_xss_filter' => true, 'is_add_index' => true);
-    const title = array('type' => qdbm_type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
-    const description = array('type' => qdbm_type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
+    const group_type = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
+    const filter_type = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
+    const column_name = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
+    const parent_id = array('type' => type_column::unsigned_int, 'is_xss_filter' => true, 'is_add_index' => true);
+    const title = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
+    const description = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
 }
 
-class qdbm
+class db
 {
     private $table = null;
     private $columns = [];
@@ -660,8 +826,7 @@ class qdbm
         static::$mysqli_auth = $config;
     }
 
-
-    public function __construct(qdbm_schema $qdbm_schema)
+    public function __construct(schema $qdbm_schema)
     {
         if(is_null(static::$path_cache)) {
             static::$path_cache = $_SERVER['DOCUMENT_ROOT'] . "/.QuickDBM_cache";
@@ -689,12 +854,11 @@ class qdbm
         return $this;
     }
 
-
     function __destruct()
     {
         if(static::$cache_is_modified && !is_null(static::$check_column_table_cache)) {
             $str = serialize(static::$check_column_table_cache);
-            qdbm_ext_tools::save_to_text_file(static::$path_cache, $str, null);
+            ext_tools::save_to_text_file(static::$path_cache, $str, null);
         }
         static::$check_column_table_cache = null;
     }
@@ -702,7 +866,7 @@ class qdbm
     function check_column($column_name)
     {
         if(is_null(static::$check_column_table_cache)) {
-            $str = qdbm_ext_tools::open_txt_file(static::$path_cache, null);
+            $str = ext_tools::open_txt_file(static::$path_cache, null);
             static::$check_column_table_cache = is_null($str) ? [] : unserialize($str);
         }
         if(!isset(static::$check_column_table_cache[$this->table])) {
@@ -711,13 +875,13 @@ class qdbm
         }
         $name = $column_name;
         $link = static::get_mysqli_link();
-        $name = qdbm_ext_tools::xss_filter($name);
+        $name = ext_tools::xss_filter($name);
         if(isset(static::$check_column_table_cache[$this->table][$name]))
             return static::$check_column_table_cache[$this->table][$name];
         $sql = "SHOW COLUMNS FROM `" . $this->table . "` LIKE '" . $name . "'";
         $result = $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         $itog = $result->fetch_assoc();
 
         if(is_null($itog))
@@ -735,14 +899,14 @@ class qdbm
             return $mysqli_link;
         $mysqli = &static::$mysqli_auth;
         if(!isset($mysqli["host"]))
-            qdbm_ext_tools::error("Не указаны даннае авторизации mysql");
-        $mysqli_link = new mysqli($mysqli["host"], $mysqli["user"], $mysqli["password"]);
+            ext_tools::error("Не указаны даннае авторизации mysql");
+        $mysqli_link = new \mysqli($mysqli["host"], $mysqli["user"], $mysqli["password"]);
         if(!$mysqli_link)
-            qdbm_ext_tools::error("В настоящее время сервер не может подключиться к базе данных...");
+            ext_tools::error("В настоящее время сервер не может подключиться к базе данных...");
         if(!$mysqli_link) exit(mysqli_error($mysqli_link));
         /* check connection */
         if(mysqli_connect_errno()) {
-            qdbm_ext_tools::error("Ошибка подключения: " . mysqli_connect_error());
+            ext_tools::error("Ошибка подключения: " . mysqli_connect_error());
         }
         mysqli_query($mysqli_link, "set character_set_client	='utf8'");
         mysqli_query($mysqli_link, "set character_set_results='utf8'");
@@ -769,7 +933,7 @@ class qdbm
             $result = mysqli_stmt_execute($stmt);
         }
         if(!$mysqli_link->set_charset("utf8"))
-            qdbm_ext_tools::error("Ошибка при загрузке набора символов utf8: " . $mysqli->error);
+            ext_tools::error("Ошибка при загрузке набора символов utf8: " . $mysqli->error);
         $select_status = $mysqli_link->select_db($mysqli["db_name"]);
         if(!$select_status)
             static::set_db_name($mysqli["db_name"], $mysqli_link);
@@ -778,13 +942,13 @@ class qdbm
         return $mysqli_link;
     }
 
-    static function sql_query($sql, $return_array = false)
+    static function raw_sql($sql, $return_array = false)
     {
         $link = static::get_mysqli_link();
         static::$check_column_table_cache = [];
         $result = $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         if(!$return_array)
             return $result;
         $itog_ = $result->fetch_all(MYSQLI_ASSOC);
@@ -796,7 +960,7 @@ class qdbm
         if(!is_null(static::$check_column_table_cache) && isset(static::$check_column_table_cache[$check_table]))
             return true;
         $link = static::get_mysqli_link();
-        $check_table = qdbm_ext_tools::xss_filter($check_table);
+        $check_table = ext_tools::xss_filter($check_table);
         if(($check_table_res = mysqli_query($link, 'SHOW COLUMNS FROM ' . $check_table)) and isset($check_table_res) and mysqli_fetch_assoc($check_table_res))
             return true;
         else
@@ -806,7 +970,7 @@ class qdbm
     static function check_db_name($db_name)
     {
         $link = static::get_mysqli_link();
-        $db_name = qdbm_ext_tools::xss_filter($db_name);
+        $db_name = ext_tools::xss_filter($db_name);
         $db_name_res = mysqli_query($link, 'SHOW DATABASES LIKE \'' . $db_name . "'");
         if(mysqli_fetch_assoc($db_name_res))
             return true;
@@ -818,24 +982,24 @@ class qdbm
     {
         $link = is_null($_link) ? static::get_mysqli_link() : $_link;
         static::$check_column_table_cache = null;
-        $db_name = qdbm_ext_tools::xss_filter($db_name);
+        $db_name = ext_tools::xss_filter($db_name);
         if(!static::check_db_name($db_name)) {
             $sql = "CREATE DATABASE `" . $db_name . "` CHARACTER SET utf8 COLLATE utf8_general_ci";
             $link->query($sql);
             if($link->errno !== 0)
-                qdbm_ext_tools::error($link->error . " sql:" . $sql);
+                ext_tools::error($link->error . " sql:" . $sql);
 
         }
         if(!$link->select_db($db_name)) {
             if($link->errno !== 0)
-                qdbm_ext_tools::error($link->error);
+                ext_tools::error($link->error);
         }
     }
 
     private function set_table($table)
     {
         $link = static::get_mysqli_link();
-        $table = qdbm_ext_tools::xss_filter($table);
+        $table = ext_tools::xss_filter($table);
         $table_prefix = static::$mysqli_auth['table_prefix'];
         if(!empty($table_prefix))
             $table = $table_prefix . $table;
@@ -844,7 +1008,7 @@ class qdbm
             ENGINE=InnoDB DEFAULT CHARSET=utf8;";
             $link->query($sql);
             if($link->errno !== 0)
-                qdbm_ext_tools::error($link->error . " sql:" . $sql);
+                ext_tools::error($link->error . " sql:" . $sql);
         }
         $this->table = $table;
     }
@@ -857,23 +1021,22 @@ class qdbm
     static function remove_table($table)
     {
         $link = static::get_mysqli_link();
-        $table = qdbm_ext_tools::xss_filter($table);
+        $table = ext_tools::xss_filter($table);
         $sql = "DROP TABLE `$table`";
         $result = $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
     }
-
 
     function get_raw_type_column($column_name)
     {
         $name = $column_name;
         $link = static::get_mysqli_link();
-        $name = qdbm_ext_tools::xss_filter($name);
+        $name = ext_tools::xss_filter($name);
         $sql = "SHOW COLUMNS FROM `" . $this->table . "` LIKE '" . $name . "'";
         $result = $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         $itog = $result->fetch_assoc();
         if(is_null($itog))
             return null;
@@ -887,40 +1050,40 @@ class qdbm
         static::$check_column_table_cache = null;
         $sql = '';
         switch ($type) {
-            case qdbm_type_column::small_string:
+            case type_column::small_string:
                 $sql = "ALTER TABLE `" . $this->table . "`  ADD `" . $name . "` VARCHAR(255) CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL";
                 break;
-            case qdbm_type_column::string:
+            case type_column::string:
                 $sql = "ALTER TABLE `" . $this->table . "`  ADD `" . $name . "` LONGTEXT CHARACTER SET utf8 COLLATE utf8_general_ci NULL DEFAULT NULL";
                 break;
-            case qdbm_type_column::decimal_auto:
-                $tmp_decimal_size = qdbm_ext_tools::decimal_size("1");
+            case type_column::decimal_auto:
+                $tmp_decimal_size = ext_tools::decimal_size("1");
                 $tmp_int_size = $tmp_decimal_size[0];
                 $tmp_scale_size = $tmp_decimal_size[1];
                 $sql = "ALTER TABLE `" . $this->table . "` ADD `" . $name . "` DECIMAL($tmp_int_size,$tmp_scale_size) NULL DEFAULT NULL;";
                 break;
-            case qdbm_type_column::int:
+            case type_column::int:
                 $sql = "ALTER TABLE `" . $this->table . "` ADD `" . $name . "` INT(255) NULL DEFAULT NULL";
                 break;
-            case qdbm_type_column::big_int:
+            case type_column::big_int:
                 $sql = "ALTER TABLE `" . $this->table . "` ADD `" . $name . "` BIGINT(255) NULL DEFAULT NULL";
                 break;
-            case qdbm_type_column::unsigned_int:
+            case type_column::unsigned_int:
                 $sql = "ALTER TABLE `" . $this->table . "` ADD `" . $name . "` INT(255) unsigned NULL DEFAULT NULL";
                 break;
-            case qdbm_type_column::unsigned_big_int:
+            case type_column::unsigned_big_int:
                 $sql = "ALTER TABLE `" . $this->table . "` ADD `" . $name . "` BIGINT(255) unsigned NULL DEFAULT NULL";
                 break;
-            case qdbm_type_column::bool:
+            case type_column::bool:
                 $sql = "ALTER TABLE `" . $this->table . "` ADD `" . $name . "` BOOLEAN NULL DEFAULT NULL";
                 break;
-            case qdbm_type_column::datetime:
+            case type_column::datetime:
                 $sql = "ALTER TABLE `" . $this->table . "` ADD `" . $name . "` DATETIME NULL DEFAULT NULL";
                 break;
         }
         if($is_add_index)
             switch ($type) {
-                case qdbm_type_column::string:
+                case type_column::string:
                     $sql .= ' , ADD FULLTEXT `' . $name . '` (`' . $name . '`)';
                     break;
                 default:
@@ -930,7 +1093,7 @@ class qdbm
         $link = static::get_mysqli_link();
         $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
     }
 
     function remove_column($column_name)
@@ -939,11 +1102,11 @@ class qdbm
         $link = static::get_mysqli_link();
         if(isset(static::$check_column_table_cache[$this->table]) and isset(static::$check_column_table_cache[$this->table][$name]))
             unset(static::$check_column_table_cache[$this->table][$name]);
-        $name = qdbm_ext_tools::xss_filter($name);
+        $name = ext_tools::xss_filter($name);
         $sql = "ALTER TABLE `" . $this->table . "` DROP `" . $name . "`";
         $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         return true;
     }
 
@@ -970,7 +1133,7 @@ class qdbm
         $link = static::get_mysqli_link();
         $result = $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         $itog = $result->fetch_assoc();
         if($itog !== null)
             $new_id = $itog["id"] + 1;
@@ -983,91 +1146,27 @@ class qdbm
     /**
      * @param array $records Список записей в виде ["column_name"=>'value', "column_name2"=>'value2']
      * @param integer $insert_id Идентификатор строки в таблице. Если строка не найдена, то она вставляется как новая. Если параметр $where, не null, то $insert_id игнорируется
-     * @param qdbm_where|null $where [optional] Альтернативное условие в запросе, по умолчанию при обновлении записи используется `id`=$insert_id
+     * @param where|null $where [optional] Альтернативное условие в запросе, по умолчанию при обновлении записи используется `id`=$insert_id
      * @throws exception
      */
-    function insert($records, $insert_id, qdbm_where $where = null)
+    function insert($records, $insert_id, where $where = null)
     {
-
         $tmp_w_l = static::$write_locked;
         if(!$tmp_w_l)
             $this->smart_write_lock();
-        foreach ($records as $key => $value) {
-            $column_inf = $this->columns[$key];
-            $this->_insert($column_inf, $value, $insert_id, $where);
-        }
-        if(!$tmp_w_l)
-            $this->unlock_tables();
-    }
-
-    private function _insert(array $column_inf, $value, $insert_id, qdbm_where $where = null)
-    {
         $link = static::get_mysqli_link();
         $id = $insert_id;
-        $name = $column_inf['name'];
-        $type = $column_inf['type'];
-        $is_xss_filter = $column_inf['is_xss_filter'];
-        $is_add_index = $column_inf['is_add_index'];
-
+        $id = ext_tools::xss_filter($id);
         if(is_null($where)) {
             if(is_null($id) && is_null($id))
-                qdbm_ext_tools::error('last_id null');
-        }
-        $id = qdbm_ext_tools::xss_filter($id);
-        $name = qdbm_ext_tools::xss_filter($name);
+                ext_tools::error('last_id null');
 
-        switch ($type) {
-            case qdbm_type_column::small_string:
-            case qdbm_type_column::string:
-            case qdbm_type_column::datetime:
-            case qdbm_type_column::decimal_auto:
-                if($is_xss_filter)
-                    $value = qdbm_ext_tools::xss_filter($value);
-                break;
-            case qdbm_type_column::big_int:
-            case qdbm_type_column::int:
-            case qdbm_type_column::unsigned_int:
-            case qdbm_type_column::unsigned_big_int:
-                $value = intval($value, 10);
-                break;
-            case qdbm_type_column::bool:
-                $value = ($value === "1" or $value === "0") ? $value : $value ? "1" : "0";
-                break;
-            default:
-                if($is_xss_filter)
-                    $value = qdbm_ext_tools::xss_filter($value);
-                break;
-        }
-
-        if($type == qdbm_type_column::decimal_auto) {
-            $tmp_decimal_size = qdbm_ext_tools::decimal_size($value);
-            $tmp_int_size = $tmp_decimal_size[0];
-            $tmp_scale_size = $tmp_decimal_size[1];
-            $raw_type = qdbm::get_raw_type_column($name);
-            if(!preg_match('/decimal\((\d+).(\d+)\)/ui', $raw_type, $matches))
-                qdbm_ext_tools::error("$name not decimal type");
-
-            $raw_type_int_size = $matches[1];
-            $raw_type_scale_size = $matches[2];
-
-            if($tmp_int_size > $raw_type_int_size || $tmp_scale_size > $raw_type_scale_size) {
-                if($raw_type_int_size > $tmp_int_size)
-                    $tmp_int_size = $raw_type_int_size;
-                if($raw_type_scale_size > $tmp_scale_size)
-                    $tmp_scale_size = $raw_type_scale_size;
-                $sql = "ALTER TABLE `" . $this->table . "` CHANGE `" . $name . "` `" . $name . "` DECIMAL($tmp_int_size,$tmp_scale_size) NULL DEFAULT NULL;";
-                $link->query($sql);
-                if($link->errno !== 0)
-                    qdbm_ext_tools::error($link->error . " sql:" . $sql);
-            }
-        }
-        if($where == null) {
             $sql = "SELECT `id` FROM `" . $this->table . "` WHERE `id` = '" . $id . "'";
             $result = $link->query($sql);
             if($link->errno !== 0)
-                qdbm_ext_tools::error($link->error . " sql:" . $sql);
+                ext_tools::error($link->error . " sql:" . $sql);
             $itog = $result->fetch_assoc();
-            if($itog == null) {
+            if(is_null($itog)) {
                 $tmp_w_l = static::$write_locked;
                 if(!$tmp_w_l)
                     $this->smart_write_lock();
@@ -1077,156 +1176,181 @@ class qdbm
                 else {
                     $args = [
                         'order_by' => '_order',
-                        'order_method' => qdbm_order::desc,
-                        'custom_select_conjunction' => (new qdbm_select_conjunction())->add_column('_order', 'order_max', 'MAX'),
+                        'order_method' => order::desc,
+                        'select' => (new select_exp())->add_column(null, '_order', 'order_max', 'MAX'),
                         'group_by' => '_order'
                     ];
-                    $res = static::get_rows($args);
+                    $res = static::get_rows(new select_q($args));
                     $_order = $res[0]['order_max'] + 1;
                 }
                 $sql = "INSERT INTO `" . $this->table . "` SET `id`='" . $id . "', `_order`='" . $_order . "'";
                 $link->query($sql);
                 if($link->errno !== 0)
-                    qdbm_ext_tools::error($link->error . " sql:" . $sql);
+                    ext_tools::error($link->error . " sql:" . $sql);
                 if(!$tmp_w_l)
                     $this->unlock_tables();
             }
+        }
 
-            $sql = "UPDATE `" . $this->table . "` SET `" . $name . "`=? WHERE `id` = '" . $id . "'";
-        } else
-            $sql = "UPDATE `" . $this->table . "` SET `" . $name . "`=? WHERE " . $where->get();
+
+        $sql = "";
+        $s_values = [];
+        $bind_params = [""];
+        $i = 0;
+        foreach ($records as $key => $value) {
+            $column_inf = $this->columns[$key];
+            $name = $column_inf['name'];
+            $type = $column_inf['type'];
+            $is_xss_filter = $column_inf['is_xss_filter'];
+            $is_add_index = $column_inf['is_add_index'];
+            $name = ext_tools::xss_filter($name);
+            switch ($type) {
+                case type_column::small_string:
+                case type_column::string:
+                case type_column::datetime:
+                case type_column::decimal_auto:
+                    if($is_xss_filter)
+                        $value = ext_tools::xss_filter($value);
+                    break;
+                case type_column::big_int:
+                case type_column::int:
+                case type_column::unsigned_int:
+                case type_column::unsigned_big_int:
+                    $value = intval($value, 10);
+                    break;
+                case type_column::bool:
+                    $value = ($value === "1" or $value === "0") ? $value : $value ? "1" : "0";
+                    break;
+                default:
+                    if($is_xss_filter)
+                        $value = ext_tools::xss_filter($value);
+                    break;
+            }
+
+            if($type == type_column::decimal_auto) {
+                $tmp_decimal_size = ext_tools::decimal_size($value);
+                $tmp_int_size = $tmp_decimal_size[0];
+                $tmp_scale_size = $tmp_decimal_size[1];
+                $raw_type = db::get_raw_type_column($name);
+                if(!preg_match('/decimal\((\d+).(\d+)\)/ui', $raw_type, $matches))
+                    ext_tools::error("$name not decimal type");
+
+                $raw_type_int_size = $matches[1];
+                $raw_type_scale_size = $matches[2];
+
+                if($tmp_int_size > $raw_type_int_size || $tmp_scale_size > $raw_type_scale_size) {
+                    if($raw_type_int_size > $tmp_int_size)
+                        $tmp_int_size = $raw_type_int_size;
+                    if($raw_type_scale_size > $tmp_scale_size)
+                        $tmp_scale_size = $raw_type_scale_size;
+                    $sql = "ALTER TABLE `" . $this->table . "` CHANGE `" . $name . "` `" . $name . "` DECIMAL($tmp_int_size,$tmp_scale_size) NULL DEFAULT NULL;";
+                    $link->query($sql);
+                    if($link->errno !== 0)
+                        ext_tools::error($link->error . " sql:" . $sql);
+                }
+            }
+
+            $sql .= ", `" . $name . "`=?";
+
+            if($value === 0)
+                $value = "0";
+            if($value == "")
+                $value = null;
+            $bind_params[0] .= "s";
+            $s_values[] = $value;
+            $bind_params[] = &$s_values[$i];
+            $i++;
+        }
+        $sql = substr($sql, 1);
+        $sql = "UPDATE `" . $this->table . "` SET" . $sql . " WHERE " . (is_null($where) ? "`id` = '" . $id . "'" : $where->_get());
 
         $link->stmt_init();
         $stmt = $link->prepare($sql);
         if($stmt->errno !== 0)
-            qdbm_ext_tools::error($stmt->error . " sql:" . $sql);
-        if($value === 0)
-            $value = "0";
-        if($value == "")
-            $value = null;
-
-        $stmt->bind_param("s", $value);
+            ext_tools::error($stmt->error . " sql:" . $sql);
+        call_user_func_array(array($stmt, 'bind_param'), $bind_params);
         $stmt->execute();
+        unset($s_values, $bind_params);
         if($stmt->errno !== 0)
-            qdbm_ext_tools::error($stmt->error . " sql:" . $sql);
+            ext_tools::error($stmt->error . " sql:" . $sql);
+
+        if(!$tmp_w_l)
+            $this->unlock_tables();
     }
 
-    function remove_rows(qdbm_where $where)
+    function remove_rows(where $where)
     {
         $link = static::get_mysqli_link();
-        $sql = "DELETE FROM `" . $this->table . "` WHERE " . $where->get();
+        $sql = "DELETE FROM `" . $this->table . "` WHERE " . $where->_get();
         $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         return true;
     }
 
-    function get_count(qdbm_where $where = null, $column_name = "id", $is_distinct = false, $magic_quotes = true)
+    function get_count(where $where = null, $column_name = "id", $is_distinct = false, $magic_quotes = true)
     {
         $link = static::get_mysqli_link();
         $magic_quotes = $magic_quotes ? '`' : '';
         $column_name = $magic_quotes . $column_name . $magic_quotes;
         $sql = "SELECT COUNT(" . ($is_distinct ? "DISTINCT " : "") . "$column_name) AS `_count` FROM `" . $this->table . "`";
-        if(!is_null($where) and !is_null($where->get()))
-            $sql .= "WHERE " . $where->get();
+        if(!is_null($where) and !is_null($where->_get()))
+            $sql .= "WHERE " . $where->_get();
         $result = $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
 
         $val = $result->fetch_assoc();
         return intval($val["_count"]);
     }
 
-    /**
-     * @param array|null $args
-     * @param qdbm_where|null $where
-     * @param string|array $order_by
-     * @param int $order_method
-     * @param int $offset
-     * @param int $limit
-     * @param qdbm_select_conjunction|null $custom_select_conjunction
-     * @param string|null $group_by
-     * @param qdbm_left_join_on|null $join
-     * @param int|null $group_id_for_join_filters
-     * @param bool $is_distinct
-     * @return array|null
-     * @throws exception
-     */
-    function get_rows($args = null, qdbm_where $where = null, $order_by = '_order', $order_method = qdbm_order::asc, $offset = 0, $limit = 0, qdbm_select_conjunction $custom_select_conjunction = null, $group_by = null, qdbm_left_join_on $join = null, $group_id_for_join_filters = null, $is_distinct = false)
+    /*
+     *@return array|null
+     * */
+    function get_rows(select_q $select_query = null)
     {
-        if(!is_null($args))
-            extract($args);
+        if(is_null($select_query))
+            $select_query = new select_q();
         $link = static::get_mysqli_link();
-        $order_by = qdbm_ext_tools::xss_filter($order_by);
-        $group_by = qdbm_ext_tools::xss_filter($group_by);
-        $group_id_for_join_filters = qdbm_ext_tools::xss_filter($group_id_for_join_filters);
-
-        if(!is_null($group_id_for_join_filters)) {
-            $filters_table = $this->table . "_" . $group_id_for_join_filters . "_filters";
-            if(static::check_table($filters_table)) {
-                if(is_null($join))
-                    $join = new qdbm_left_join_on($this->get_table_name(), $filters_table, 'id', 'id');
-                else
-                    $join->push_join($this->get_table_name(), $filters_table, 'id', 'id');
-            }
-        }
-        $order_by = ($order_by == null) ? "_order" : $order_by;
-        $order_method = ($order_method == null) ? qdbm_order::asc : $order_method;
-        $sql = "SELECT " . ($is_distinct ? "DISTINCT " : "") . (is_null($custom_select_conjunction) ? '*' : $custom_select_conjunction->get()) . " FROM `" . $this->table . "` " . (is_null($join) ? '' : $join->get() . ' ') . ((is_null($where) || is_null($where->get())) ? "" : "WHERE " . $where->get()) . " " . (is_null($group_by) ? '' : "GROUP BY $group_by ");
-        if(!is_array($order_by))
-            $order_by = [$order_by];
-        $i = 0;
-        foreach ($order_by as $value) {
-            $o_prefix = "ORDER BY ";
-            if($i !== 0)
-                $o_prefix = ", ";
-
-            switch ($order_method) {
-                case qdbm_order::asc:
-                    $sql .= $o_prefix . "$value";
-                    break;
-                case qdbm_order::desc:
-                    $sql .= $o_prefix . "$value DESC";
-                    break;
-                case qdbm_order::rand:
-                    $sql .= $o_prefix . "rand()";
-                    break;
-            }
-            $i++;
-        }
-
-        if($limit != 0) {
-            $offset = intval($offset);
-            $limit = intval($limit);
-            $sql .= " LIMIT " . $offset . "," . $limit;
-        } elseif($offset != 0)
-            qdbm_ext_tools::error("offset не может быть без limit");
+        $table_prefix = static::$mysqli_auth['table_prefix'];
+        $cur_table = $this->get_table_name();
+        $sql = $select_query->_get($cur_table, $table_prefix);
         $result = $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         $itog_ = $result->fetch_all(MYSQLI_ASSOC);
         return count($itog_) ? $itog_ : null;
     }
 
-    function get_unique_vals_in_column($column_name, qdbm_where $where = null, $magic_quotes = true)
+    function get_unique_vals_in_column($column_name, where $where = null, $magic_quotes = true)
     {
-        $column_name = qdbm_ext_tools::xss_filter($column_name);
+        $column_name = ext_tools::xss_filter($column_name);
         $magic_quotes = $magic_quotes ? '`' : '';
         $sql = "SELECT DISTINCT $magic_quotes$column_name$magic_quotes FROM `" . $this->table . "`";
         if(!is_null($where))
-            $sql .= "WHERE " . $where->get();
-        $result = static::sql_query($sql, true);
+            $sql .= "WHERE " . $where->_get();
+        $result = static::raw_sql($sql, true);
         return is_null($result) ? null : (isset($result[$column_name]) ? $result[$column_name] : $result[0]);
     }
 
-    function get_min_and_max_in_column($column_name, qdbm_where $where = null, $magic_quotes = true)
+    function get_min_and_max_in_column($column_name, where $where = null, $magic_quotes = true)
     {
-        $column_name = qdbm_ext_tools::xss_filter($column_name);
+        $column_name = ext_tools::xss_filter($column_name);
         $magic_quotes = $magic_quotes ? '`' : '';
-        $select = new qdbm_select_conjunction();
-        $select->add_column('IFNULL(MIN(' . $magic_quotes . $column_name . $magic_quotes . '),0)', "min", null, null, false, false);
-        $select->add_column('IFNULL(MAX(' . $magic_quotes . $column_name . $magic_quotes . '),0)', "max", null, null, false, false);
-        $res = $this->get_rows(null, $where, null, null, 0, 0, $select);
+        $select = new select_exp();
+        $select->add_column([
+            'column_name' => 'IFNULL(MIN(' . $magic_quotes . $column_name . $magic_quotes . '),0)',
+            'as_column_name' => 'min',
+            'column_name_xss_filter' => false,
+            'column_name_magic_quotes' => false
+        ]);
+        $select->add_column([
+            'column_name' => 'IFNULL(MAX(' . $magic_quotes . $column_name . $magic_quotes . '),0)',
+            'as_column_name' => 'max',
+            'column_name_xss_filter' => false,
+            'column_name_magic_quotes' => false
+        ]);
+        $res = $this->get_rows(new select_q(null, $where, null, null, 0, 0, $select));
         $min = $res[0]['min'];
         $max = $res[0]['max'];
         if(is_null($max) or is_null($min))
@@ -1238,11 +1362,11 @@ class qdbm
     function format_ids_in_table($id = "id")
     {
         $link = static::get_mysqli_link();
-        $id = qdbm_ext_tools::xss_filter($id);
+        $id = ext_tools::xss_filter($id);
         $sql = "UPDATE `" . $this->table . "` SET `$id`=(SELECT @a:=@a+1 FROM (SELECT @a:=0) i)";
         $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         return true;
     }
 
@@ -1256,10 +1380,20 @@ class qdbm
      */
     function smart_write_lock()
     {
+        static::s_smart_write_lock($this->table);
+    }
+
+    /**
+     * @see smart_write_lock
+     * @param null|string $this_table
+     * @throws exception
+     */
+    static function s_smart_write_lock($this_table = null)
+    {
         if(static::$write_locked) {
-            if(in_array($this->table, static::$write_locked_arr))
+            if(in_array($this_table, static::$write_locked_arr))
                 return;
-            error("Re-lock is forbidden");
+            ext_tools::error("Re-lock is forbidden");
         }
         $link = static::get_mysqli_link();
         static::$write_locked = true;
@@ -1272,22 +1406,32 @@ class qdbm
         $sql = "LOCK TABLES $tables_str";
         $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
     }
 
     function unlock_tables()
+    {
+        return static::s_unlock_tables();
+    }
+
+    static function s_unlock_tables()
     {
         $link = static::get_mysqli_link();
         $sql = "UNLOCK TABLES";
         $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         static::$write_locked = false;
         static::$write_locked_arr = [];
         return true;
     }
 
     function close_connection()
+    {
+        static::s_close_connection();
+    }
+
+    function s_close_connection()
     {
         $link = static::get_mysqli_link();
         $link->close();
@@ -1301,10 +1445,10 @@ class qdbm
         $to = intval($to, 10);
         if($from == $to)
             return true;
-        $where = new qdbm_where();
+        $where = new where();
         $where->equally('_order', $from);
         $where->equally('_order', $to, false);
-        $result = $this->get_rows(null, $where);
+        $result = $this->get_rows(new select_q(null, $where));
         if(count($result) != 2)
             return false;
         $ids = array();
@@ -1317,7 +1461,7 @@ class qdbm
             $sql .= "`_order`=`_order`+1 WHERE `_order`<$from AND `_order`>=$to ORDER BY `_order`";
         $link->query($sql);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error . " sql:" . $sql);
+            ext_tools::error($link->error . " sql:" . $sql);
         $rec = [
             '_order' => $to
         ];
@@ -1333,10 +1477,10 @@ class qdbm
 
         for ($i = 0; $i < $len; $i++) {
             if($from[$i] != $to[$i]) {
-                $where = new qdbm_where();
+                $where = new where();
                 $where->equally('id', $ids[$i]);
                 $where->equally('_order', $from[$i]);
-                if(is_null($this->get_rows(null, $where))) {
+                if(is_null($this->get_rows(new select_q(null, $where)))) {
                     $this->unlock_tables();
                     return false;
                 }
@@ -1346,7 +1490,7 @@ class qdbm
         $rec = [];
         for ($i = 0; $i < $len; $i++) {
             if($from[$i] != $to[$i]) {
-                $where = new qdbm_where();
+                $where = new where();
                 $where->equally('id', $ids[$i]);
                 $where->equally('_order', $from[$i]);
                 $rec['_order'] = $to[$i];
@@ -1362,12 +1506,12 @@ class qdbm
     {
         $link = static::get_mysqli_link();
         static::$check_column_table_cache = null;
-        $sql_text = qdbm_ext_tools::open_txt_file($file_name, null);
+        $sql_text = ext_tools::open_txt_file($file_name, null);
         if(is_null($sql_text))
-            qdbm_ext_tools::error('error import sql file ' . $file_name);
+            ext_tools::error('error import sql file ' . $file_name);
         $link->multi_query($sql_text);
         if($link->errno !== 0)
-            qdbm_ext_tools::error($link->error);
+            ext_tools::error($link->error);
 
         do {
             $link->use_result();
@@ -1379,16 +1523,16 @@ class qdbm
     private function get_gf_db($tab_name = null)
     {
         $table = is_null($tab_name) ? $this->table . "_groups" : $tab_name;
-        $db = new qdbm(new qdbm_gf_schema($table));
+        $db = new db(new gf_schema($table));
         return $db;
     }
 
     static function type_is_group($group_type)
     {
 
-        $group_constants = qdbm_ext_tools::get_constants_in_class('qdbm_group_type');
+        $group_constants = ext_tools::get_constants_in_class('qdbm_group_type');
         foreach ($group_constants as $type) {
-            if($type == $group_type and $group_type != qdbm_group_type::all)
+            if($type == $group_type and $group_type != group_type::all)
                 return true;
         }
         return false;
@@ -1396,28 +1540,28 @@ class qdbm
 
     static function type_is_filter($filter_type)
     {
-        $filter_constants = qdbm_ext_tools::get_constants_in_class('qdbm_filter_type');
+        $filter_constants = ext_tools::get_constants_in_class('qdbm_filter_type');
         foreach ($filter_constants as $type) {
-            if($type == $filter_type and $filter_type != qdbm_filter_type::all)
+            if($type == $filter_type and $filter_type != filter_type::all)
                 return true;
         }
         return false;
     }
 
-    function add_group($title, $description, $parent_id = 0, $group_type = qdbm_group_type::standard)
+    function add_group($title, $description, $parent_id = 0, $group_type = group_type::standard)
     {
         if(!static::type_is_group($group_type)) {
-            qdbm_ext_tools::error('Недопустимый тип группы');
+            ext_tools::error('Недопустимый тип группы');
             return false;
         }
         if($parent_id != 0) {
             $res = $this->get_group($parent_id);
-            if($res[0]['group_type'] == qdbm_group_type::standard and $group_type != qdbm_group_type::filter) {
-                qdbm_ext_tools::error('Нельзя добавить подгруппу в стандартную группу');
+            if($res[0]['group_type'] == group_type::standard and $group_type != group_type::filter) {
+                ext_tools::error('Нельзя добавить подгруппу в стандартную группу');
                 return false;
             }
-            if($res[0]['group_type'] == qdbm_group_type::expand and $group_type == qdbm_group_type::filter) {
-                qdbm_ext_tools::error('Нельзя добавить группу фильтров в разворачиваемую группу');
+            if($res[0]['group_type'] == group_type::expand and $group_type == group_type::filter) {
+                ext_tools::error('Нельзя добавить группу фильтров в разворачиваемую группу');
                 return false;
             }
         }
@@ -1428,20 +1572,20 @@ class qdbm
      * @param string $title Заголовок
      * @param string $description Описание
      * @param int $group_id ID группы. Если ID 0, то фильтр будет глобальный
-     * @param qdbm_filter_type $filter_type Тип Фильтра
+     * @param filter_type $filter_type Тип Фильтра
      * @return bool|int|null
      * @throws exception
      */
     function add_filter($title, $description, $group_id = 0, $filter_type, $column_name = null)
     {
         if(!static::type_is_filter($filter_type)) {
-            qdbm_ext_tools::error('Недопустимый тип фильтра');
+            ext_tools::error('Недопустимый тип фильтра');
             return false;
         }
         if($group_id) {
             $res = $this->get_group($group_id);
-            if($res[0]['group_type'] == qdbm_group_type::expand) {
-                qdbm_ext_tools::error('Нельзя добавить фильтр в разворачиваемую группу');
+            if($res[0]['group_type'] == group_type::expand) {
+                ext_tools::error('Нельзя добавить фильтр в разворачиваемую группу');
                 return false;
             }
         }
@@ -1472,10 +1616,10 @@ class qdbm
     {
         $res = $this->get_group($id);
         if(!is_null($res) and !static::type_is_group($res[0]['group_type']))
-            qdbm_ext_tools::error("Группы не существует");
+            ext_tools::error("Группы не существует");
         if($res == null and !$force_edit)
-            qdbm_ext_tools::error("Группы не существует");
-        return $this->group($id, $title, $description, $parent_id, $force_edit ? qdbm_group_type::standard : $res[0]['group_type']);
+            ext_tools::error("Группы не существует");
+        return $this->group($id, $title, $description, $parent_id, $force_edit ? group_type::standard : $res[0]['group_type']);
     }
 
     private function group($id = null, $title, $description, $parent_id, $group_type, $column_name = null)
@@ -1497,15 +1641,15 @@ class qdbm
             $records['group_type'] = $group_type;
         else
             switch ($group_type) {
-                case qdbm_filter_type::bool_filter:
-                    $column_type = qdbm_type_column::bool;
+                case filter_type::bool_filter:
+                    $column_type = type_column::bool;
                     break;
-                case qdbm_filter_type::int_band_filter:
-                case qdbm_filter_type::int_filter:
-                    $column_type = qdbm_type_column::int;
+                case filter_type::int_band_filter:
+                case filter_type::int_filter:
+                    $column_type = type_column::int;
                     break;
-                case qdbm_filter_type::string_filter:
-                    $column_type = qdbm_type_column::small_string;
+                case filter_type::string_filter:
+                    $column_type = type_column::small_string;
                     break;
             }
         $db->insert($records, $new_id);
@@ -1522,14 +1666,14 @@ class qdbm
             $table = $this->table;
             if($parent_id) {
                 if(is_null($stp_group))
-                    qdbm_ext_tools::error('$stp_group==null');
+                    ext_tools::error('$stp_group==null');
                 $fg_id = $stp_group[0]['id'];
                 $filter_table = $table . "_" . $fg_id . "_filters";
             } else
                 $filter_table = $table;
             $db = $this->get_gf_db($filter_table);
             if(!$db->check_column($column_name))
-                $db->add_column($column_name, qdbm_gf_schema::column_name['type'], qdbm_gf_schema::column_name['is_add_index']);
+                $db->add_column($column_name, gf_schema::column_name['type'], gf_schema::column_name['is_add_index']);
         }
         return $new_id;
     }
@@ -1537,20 +1681,20 @@ class qdbm
     function remove_group($id)
     {
 
-        $id = qdbm_ext_tools::xss_filter($id);
+        $id = ext_tools::xss_filter($id);
         $group_inf = $this->get_group($id);
         if($group_inf == null)
-            qdbm_ext_tools::error("Такой группы не существует");
+            ext_tools::error("Такой группы не существует");
         $this->remove_group_or_filter($id, $group_inf);
         return true;
     }
 
     function remove_filter($id)
     {
-        $id = qdbm_ext_tools::xss_filter($id);
+        $id = ext_tools::xss_filter($id);
         $group_inf = $this->get_filter($id);
         if($group_inf == null)
-            qdbm_ext_tools::error("Такого фильтра не существует");
+            ext_tools::error("Такого фильтра не существует");
         $this->remove_group_or_filter($id, $group_inf);
         return true;
     }
@@ -1573,10 +1717,10 @@ class qdbm
             }
         }
 
-        $childrens = $this->get_groups(qdbm_order::asc, 0, 0, $id);
+        $childrens = $this->get_groups(order::asc, 0, 0, $id);
         if(is_null($childrens))
             $childrens = array();
-        $filters = $this->get_filters(qdbm_order::asc, $id);
+        $filters = $this->get_filters(order::asc, $id);
         if(is_null($filters))
             $filters = array();
         $childrens = array_merge($childrens, $filters);
@@ -1588,7 +1732,7 @@ class qdbm
         }
 
         $db = $this->get_gf_db();
-        $where = new qdbm_where();
+        $where = new where();
         $where->equally('id', $id);
         $db->remove_rows($where);
         if($group_inf[0]['parent_id'] and static::type_is_filter($group_inf[0]['qdbm_group_type']) and is_null($this->get_recursive_filters($stp_group_id)))
@@ -1604,9 +1748,9 @@ class qdbm
     {
         $g_r = $this->get_group_any_type($id);
         if(is_null($g_r))
-            qdbm_ext_tools::error('$g_r==null');
+            ext_tools::error('$g_r==null');
         $p_id = $g_r[0]['parent_id'];
-        if($g_r[0]['group_type'] != qdbm_group_type::standard)
+        if($g_r[0]['group_type'] != group_type::standard)
             return $this->get_stp_group_for_filter($p_id);
         return $g_r;
     }
@@ -1618,10 +1762,10 @@ class qdbm
         if($new_id == 1) {
             return null;
         }
-        $id = qdbm_ext_tools::xss_filter($id);
-        $where = new qdbm_where();
+        $id = ext_tools::xss_filter($id);
+        $where = new where();
         $where->equally('id', $id);
-        $result = $db->get_rows(null, $where);
+        $result = $db->get_rows(new select_q(null, $where));
         return $result;
     }
 
@@ -1641,7 +1785,7 @@ class qdbm
         return $result;
     }
 
-    public function get_groups($order = qdbm_order::asc, $offset = 0, $limit = 0, $parent_id = 0, $group_type = qdbm_group_type::all)
+    public function get_groups($order = order::asc, $offset = 0, $limit = 0, $parent_id = 0, $group_type = group_type::all)
     {
         $parent_id = intval($parent_id);
         $db = $this->get_gf_db();
@@ -1649,14 +1793,14 @@ class qdbm
         if($new_id == 1) {
             return null;
         }
-        $where_main = new qdbm_where();
+        $where_main = new where();
         $where_main->equally('parent_id', $parent_id);
 
         if(static::type_is_group($group_type)) {
             $where_main->equally('filter_type', $group_type);
-        } elseif($group_type == qdbm_group_type::all) {
-            $ext_where = new qdbm_where();
-            $group_constants = qdbm_ext_tools::get_constants_in_class('qdbm_group_type');
+        } elseif($group_type == group_type::all) {
+            $ext_where = new where();
+            $group_constants = ext_tools::get_constants_in_class('qdbm_group_type');
             $group_constants_len = count($group_constants);
             $i = 0;
             foreach ($group_constants as $type) {
@@ -1667,11 +1811,11 @@ class qdbm
             }
             $where_main->push_where($ext_where);
         }
-        $result = $db->get_rows(null, $where_main, null, $order, $offset, $limit);
+        $result = $db->get_rows(new select_q(null, $where_main, null, $order, $offset, $limit));
         return $result;
     }
 
-    public function get_filters($order = qdbm_order::asc, $group_id, $filter_type = qdbm_filter_type::all, $offset = 0, $limit = 0)
+    public function get_filters($order = order::asc, $group_id, $filter_type = filter_type::all, $offset = 0, $limit = 0)
     {
         $group_id = intval($group_id);
         $db = $this->get_gf_db();
@@ -1680,14 +1824,14 @@ class qdbm
             return null;
         }
 
-        $where_main = new qdbm_where();
+        $where_main = new where();
         $where_main->equally('parent_id', $group_id);
         $where_main->equally('parent_id', 0, false);
         if(static::type_is_filter($filter_type)) {
             $where_main->equally('filter_type', $filter_type);
-        } elseif($filter_type == qdbm_filter_type::all) {
-            $ext_where = new qdbm_where();
-            $filter_constants = qdbm_ext_tools::get_constants_in_class('qdbm_filter_type');
+        } elseif($filter_type == filter_type::all) {
+            $ext_where = new where();
+            $filter_constants = ext_tools::get_constants_in_class('qdbm_filter_type');
             $filter_constants_len = count($filter_constants);
             $i = 0;
             foreach ($filter_constants as $type) {
@@ -1698,7 +1842,7 @@ class qdbm
             }
             $where_main->push_where($ext_where);
         }
-        $result = $db->get_rows(null, $where_main, null, $order, $offset, $limit);
+        $result = $db->get_rows(new select_q(null, $where_main, null, $order, $offset, $limit));
 
         return $result;
     }
@@ -1706,7 +1850,7 @@ class qdbm
     public function get_recursive_filters($group_id)
     {
         $group_id_arr = array($group_id);
-        $fg_result = $this->get_all_recursive_children_group($group_id, qdbm_group_type::filter);
+        $fg_result = $this->get_all_recursive_children_group($group_id, group_type::filter);
         if(!is_null($fg_result)) {
             foreach ($fg_result as $fg) {
                 array_push($group_id_arr, $fg['id']);
@@ -1715,14 +1859,14 @@ class qdbm
 
         $f_result = array();
         foreach ($group_id_arr as $g_id) {
-            $tmp_f_result = $this->get_filters(qdbm_order::asc, $g_id);
+            $tmp_f_result = $this->get_filters(order::asc, $g_id);
             if(!is_null($tmp_f_result))
                 $f_result = array_merge($f_result, $tmp_f_result);
         }
         return count($f_result) ? $f_result : null;
     }
 
-    function get_unique_vals_in_filter($filter_id, qdbm_where $where = null, $magic_quotes = true)
+    function get_unique_vals_in_filter($filter_id, where $where = null, $magic_quotes = true)
     {
         $filter = $this->get_filter($filter_id);
         if($filter[0]['parent_id']) {
@@ -1734,7 +1878,7 @@ class qdbm
         return $res;
     }
 
-    function get_min_and_max_in_filter($filter_id, qdbm_where $where = null, $magic_quotes = true)
+    function get_min_and_max_in_filter($filter_id, where $where = null, $magic_quotes = true)
     {
         $filter = $this->get_filter($filter_id);
         if($filter[0]['parent_id']) {
@@ -1793,14 +1937,14 @@ class qdbm
         return $this->get_all_parents_r($parent_id, $out_arr);
     }
 
-    public function get_all_recursive_children_group($id, $group_type = qdbm_group_type::all)
+    public function get_all_recursive_children_group($id, $group_type = group_type::all)
     {
         return $this->get_all_recursive_children_group_r($id, array(), $group_type);
     }
 
     private function get_all_recursive_children_group_r($id, $out_arr, $group_type)
     {
-        $res = $this->get_groups(qdbm_order::asc, 0, 0, $id, $group_type);
+        $res = $this->get_groups(order::asc, 0, 0, $id, $group_type);
         if(!is_null($res)) {
             foreach ($res as $val) {
                 array_push($out_arr, $val);
