@@ -1,7 +1,7 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 3.0.0
+ * Version: 4.0.0
  * Author:  Novojilov Pavel Andreevich
  * Support: http://SHOWYWEB.ru
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
@@ -310,12 +310,12 @@ class where
     }
 
 
-    private function gen_column($column_name, $sql_function_name_for_column, $magic_quotes = true)
+    private function gen_column($column, $sql_function, $magic_quotes = true)
     {
-        $column = $column_name;
+        $column = $column;
         $magic_quotes = $magic_quotes ? '`' : '';
-        $sql_function_name_for_column = ext_tools::xss_filter($sql_function_name_for_column);
-        return is_null($sql_function_name_for_column) ? $magic_quotes . $column . $magic_quotes : $sql_function_name_for_column . '(' . $magic_quotes . $column . $magic_quotes . ')';
+        $sql_function = ext_tools::xss_filter($sql_function);
+        return is_null($sql_function) ? $magic_quotes . $column . $magic_quotes : $sql_function . '(' . $magic_quotes . $column . $magic_quotes . ')';
     }
 
 
@@ -329,9 +329,8 @@ class where
         return $this;
     }
 
-    function equally($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function equally($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
-        $column = $column_name;
         if(gettype($value) == type_column::bool)
             $value = $value ? 1 : 0;
         if($xss_filter) {
@@ -339,13 +338,12 @@ class where
             $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "=$value_quotes$value$value_quotes", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function, $magic_quotes) . "=$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function not_equally($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function not_equally($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
-        $column = $column_name;
         if(gettype($value) == type_column::bool)
             $value = $value ? 1 : 0;
         if($xss_filter) {
@@ -353,126 +351,117 @@ class where
             $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "!=$value_quotes$value$value_quotes", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function, $magic_quotes) . "!=$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function more($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function more($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
-        $column = $column_name;
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
             $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ">$value_quotes$value$value_quotes", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function, $magic_quotes) . ">$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function more_or_equally($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function more_or_equally($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
-        $column = $column_name;
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
             $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ">=$value_quotes$value$value_quotes", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function, $magic_quotes) . ">=$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function less($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function less($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
-        $column = $column_name;
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
             $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "<$value_quotes$value$value_quotes", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function, $magic_quotes) . "<$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function less_or_equally($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function less_or_equally($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
-        $column = $column_name;
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
             $value = ext_tools::xss_filter($value);
         }
         $value_quotes = $value_quotes ? "'" : "";
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . "<=$value_quotes$value$value_quotes", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function, $magic_quotes) . "<=$value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 
-    function is_null($column_name, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true)
+    function is_null($column, $before_use_and = true, $sql_function = null, $xss_filter = true)
     {
-        $column = $column_name;
         if($xss_filter)
             $column = ext_tools::xss_filter($column);
-        $this->push($this->gen_column($column, $sql_function_name_for_column) . " IS NULL", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function) . " IS NULL", $before_use_and);
         return $this;
     }
 
-    function is_not_null($column_name, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true)
+    function is_not_null($column, $before_use_and = true, $sql_function = null, $xss_filter = true)
     {
-        $column = $column_name;
         if($xss_filter)
             $column = ext_tools::xss_filter($column);
-        $this->push($this->gen_column($column, $sql_function_name_for_column) . " IS NOT NULL", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function) . " IS NOT NULL", $before_use_and);
         return $this;
     }
 
-    function partial_like($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function partial_like($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
     {
-        $column = $column_name;
         $value_quotes = $value_quotes ? "'" : "";
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
             $value = ext_tools::xss_filter($value);
         }
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . " LIKE $value_quotes%$value%$value_quotes", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function, $magic_quotes) . " LIKE $value_quotes%$value%$value_quotes", $before_use_and);
         return $this;
     }
 
     /**
      * @link https://dev.mysql.com/doc/refman/5.5/en/fulltext-boolean.html
-     * @param string $column_name
+     * @param string $column
      * @param $value string Не фильтрует это значение на атаки XSS и SQL инъекции
      * @param bool $before_use_and
-     * @param null $sql_function_name_for_column
+     * @param null $sql_function
      * @param bool $xss_filter_column
      * @param bool $value_quotes
      * @param bool $magic_quotes
      * @return $this
      */
-    function full_text_search_bm_not_safe($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
+    function full_text_search_bm_not_safe($column, $value, $before_use_and = true, $sql_function = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
     {
-        $column = $column_name;
         $value_quotes = $value_quotes ? "'" : "";
         if($xss_filter_column)
             $column = ext_tools::xss_filter($column);
-        $this->push("MATCH (" . $this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . ") AGAINST ( $value_quotes$value$value_quotes  IN BOOLEAN MODE )", $before_use_and);
+        $this->push("MATCH (" . $this->gen_column($column, $sql_function, $magic_quotes) . ") AGAINST ( $value_quotes$value$value_quotes  IN BOOLEAN MODE )", $before_use_and);
         return $this;
     }
 
     /**
-     * @param $column_name
+     * @param $column
      * @param $value string Не фильтрует это значение на атаки XSS и SQL инъекции
      * @param bool $before_use_and
-     * @param null $sql_function_name_for_column
+     * @param null $sql_function
      * @param bool $xss_filter_column
      * @param bool $value_quotes
      * @param bool $magic_quotes
      * @return $this
      */
-    function regexp_not_safe($column_name, $value, $before_use_and = true, $sql_function_name_for_column = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
+    function regexp_not_safe($column, $value, $before_use_and = true, $sql_function = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
     {
-        $column = $column_name;
         $value_quotes = $value_quotes ? "'" : "";
         if($xss_filter_column)
             $column = ext_tools::xss_filter($column);
-        $this->push($this->gen_column($column, $sql_function_name_for_column, $magic_quotes) . " REGEXP $value_quotes$value$value_quotes", $before_use_and);
+        $this->push($this->gen_column($column, $sql_function, $magic_quotes) . " REGEXP $value_quotes$value$value_quotes", $before_use_and);
         return $this;
     }
 }
@@ -489,16 +478,16 @@ class select_exp
 
     /**
      * @param null|array $args Можно передавать следующие аргументы в этом массиве
-     * @param null|string $column_name
-     * @param null|string $as_column_name [optional]
-     * @param null|string $sql_function_name_for_column [optional]
+     * @param null|string $column
+     * @param null|string $as_column [optional]
+     * @param null|string $sql_function [optional]
      * @param null|string $custom_table_name [optional]
-     * @param true|bool $column_name_xss_filter [optional]
-     * @param true|bool $column_name_magic_quotes [optional]
+     * @param true|bool $column_xss_filter [optional]
+     * @param true|bool $column_magic_quotes [optional]
      * @return $this
      * @throws \ReflectionException
      */
-    function add_column($args, $column_name = null, $as_column_name = null, $sql_function_name_for_column = null, $custom_table_name = null, $column_name_xss_filter = true, $column_name_magic_quotes = true)
+    function add_column($args, $column = null, $as_column = null, $sql_function = null, $custom_table_name = null, $column_xss_filter = true, $column_magic_quotes = true)
     {
         $reflector = new \ReflectionClass(__CLASS__);
         $parameters = $reflector->getMethod(__FUNCTION__)->getParameters();
@@ -516,20 +505,20 @@ class select_exp
         return $this;
     }
 
-    private function _add_column($column_name, $as_column_name = null, $sql_function_name_for_column = null, $custom_table_name = null, $column_name_xss_filter = true, $column_name_magic_quotes = true)
+    private function _add_column($column, $as_column = null, $sql_function = null, $custom_table_name = null, $column_xss_filter = true, $column_magic_quotes = true)
     {
-        $column_name_magic_quotes = $column_name_magic_quotes ? '`' : '';
-        if($column_name == "*" or !is_null($sql_function_name_for_column)) $column_name_magic_quotes = "";
-        if($column_name_xss_filter)
-            $column_name = ext_tools::xss_filter($column_name);
-        $as_column_name = ext_tools::xss_filter($as_column_name);
-        $sql_function_name_for_column = ext_tools::xss_filter($sql_function_name_for_column);
+        $column_magic_quotes = $column_magic_quotes ? '`' : '';
+        if($column == "*" or !is_null($sql_function)) $column_magic_quotes = "";
+        if($column_xss_filter)
+            $column = ext_tools::xss_filter($column);
+        $as_column = ext_tools::xss_filter($as_column);
+        $sql_function = ext_tools::xss_filter($sql_function);
         $custom_table_name = ext_tools::xss_filter($custom_table_name);
-        $column_name = (is_null($custom_table_name) ? '' : $custom_table_name . '.') . $column_name_magic_quotes . $column_name . $column_name_magic_quotes;
-        $column_name = (is_null($sql_function_name_for_column) ? $column_name : $sql_function_name_for_column . '(' . $column_name . ')') . (is_null($as_column_name) ? '' : ' AS `' . $as_column_name . '`');
+        $column = (is_null($custom_table_name) ? '' : $custom_table_name . '.') . $column_magic_quotes . $column . $column_magic_quotes;
+        $column = (is_null($sql_function) ? $column : $sql_function . '(' . $column . ')') . (is_null($as_column) ? '' : ' AS `' . $as_column . '`');
         if($this->sql != "")
             $this->sql .= ", ";
-        $this->sql .= $column_name;
+        $this->sql .= $column;
     }
 
     function add_sql($sql_fragment)
@@ -663,7 +652,7 @@ class left_join_on
         return $this;
     }
 
-    function push($cur_table, $join_table, $column_name_in_current_table, $column_name_in_join_table, select_q $derived_table = null, $as_table_name = null)
+    function push($cur_table, $join_table, $column_in_current_table, $column_in_join_table, select_q $derived_table = null, $as_table_name = null)
     {
         $reflector = new \ReflectionClass(__CLASS__);
         $parameters = $reflector->getMethod(__FUNCTION__)->getParameters();
@@ -676,18 +665,18 @@ class left_join_on
         return $this;
     }
 
-    private function _push($cur_table, $join_table, $column_name_in_current_table, $column_name_in_join_table, select_q $derived_table = null, $as_table_name = null)
+    private function _push($cur_table, $join_table, $column_in_current_table, $column_in_join_table, select_q $derived_table = null, $as_table_name = null)
     {
         $join_table = ext_tools::xss_filter($join_table);
-        $column_name_in_current_table = ext_tools::xss_filter($column_name_in_current_table);
-        $column_name_in_join_table = ext_tools::xss_filter($column_name_in_join_table);
+        $column_in_current_table = ext_tools::xss_filter($column_in_current_table);
+        $column_in_join_table = ext_tools::xss_filter($column_in_join_table);
         $as_table_name = ext_tools::xss_filter($as_table_name);
         if(is_null($as_table_name))
             $as_table_name = $join_table;
         if(is_null($derived_table))
-            $this->join .= "LEFT JOIN $join_table $as_table_name ON ($cur_table.$column_name_in_current_table=$as_table_name.$column_name_in_join_table) ";
+            $this->join .= "LEFT JOIN $join_table $as_table_name ON ($cur_table.$column_in_current_table=$as_table_name.$column_in_join_table) ";
         else
-            $this->join .= "LEFT JOIN ({$derived_table->_get($join_table,"")}) $as_table_name ON ($cur_table.$column_name_in_current_table=$as_table_name.$column_name_in_join_table) ";
+            $this->join .= "LEFT JOIN ({$derived_table->_get($join_table,"")}) $as_table_name ON ($cur_table.$column_in_current_table=$as_table_name.$column_in_join_table) ";
     }
 
     function _get($table_prefix)
@@ -756,7 +745,7 @@ abstract class schema
     /**
      * qdbm_schema constructor.
      * @param string $tab_name Если не null, то переопределяет свойство $tab_name
-     * @throws exception
+     * @throws \exception
      */
     public function __construct($tab_name = null)
     {
@@ -787,7 +776,7 @@ class gf_schema extends schema
 {
     const group_type = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
     const filter_type = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
-    const column_name = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
+    const column = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
     const parent_id = array('type' => type_column::unsigned_int, 'is_xss_filter' => true, 'is_add_index' => true);
     const title = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
     const description = array('type' => type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
@@ -863,7 +852,7 @@ class db
         static::$check_column_table_cache = null;
     }
 
-    function check_column($column_name)
+    function check_column($column)
     {
         if(is_null(static::$check_column_table_cache)) {
             $str = ext_tools::open_txt_file(static::$path_cache, null);
@@ -873,7 +862,7 @@ class db
             static::$check_column_table_cache[$this->table] = [];
             static::$cache_is_modified = true;
         }
-        $name = $column_name;
+        $name = $column;
         $link = static::get_mysqli_link();
         $name = ext_tools::xss_filter($name);
         if(isset(static::$check_column_table_cache[$this->table][$name]))
@@ -1028,9 +1017,9 @@ class db
             ext_tools::error($link->error . " sql:" . $sql);
     }
 
-    function get_raw_type_column($column_name)
+    function get_raw_type_column($column)
     {
-        $name = $column_name;
+        $name = $column;
         $link = static::get_mysqli_link();
         $name = ext_tools::xss_filter($name);
         $sql = "SHOW COLUMNS FROM `" . $this->table . "` LIKE '" . $name . "'";
@@ -1044,9 +1033,9 @@ class db
 
     }
 
-    function add_column($column_name, $type, $is_add_index)
+    function add_column($column, $type, $is_add_index)
     {
-        $name = $column_name;
+        $name = $column;
         static::$check_column_table_cache = null;
         $sql = '';
         switch ($type) {
@@ -1096,9 +1085,9 @@ class db
             ext_tools::error($link->error . " sql:" . $sql);
     }
 
-    function remove_column($column_name)
+    function remove_column($column)
     {
-        $name = $column_name;
+        $name = $column;
         $link = static::get_mysqli_link();
         if(isset(static::$check_column_table_cache[$this->table]) and isset(static::$check_column_table_cache[$this->table][$name]))
             unset(static::$check_column_table_cache[$this->table][$name]);
@@ -1123,7 +1112,7 @@ class db
      * @param bool $is_auto_write_lock По умолчанию блокирует другие потоки в базе, чтобы не возник конфликт вставки с одинаковым id
      * @see smart_write_lock
      * @return int
-     * @throws exception
+     * @throws \exception
      */
     function get_new_insert_id($is_auto_write_lock = true)
     {
@@ -1144,10 +1133,10 @@ class db
 
 
     /**
-     * @param array $records Список записей в виде ["column_name"=>'value', "column_name2"=>'value2']
+     * @param array $records Список записей в виде ["column"=>'value', "column2"=>'value2']
      * @param integer $insert_id Идентификатор строки в таблице. Если строка не найдена, то она вставляется как новая. Если параметр $where, не null, то $insert_id игнорируется
      * @param where|null $where [optional] Альтернативное условие в запросе, по умолчанию при обновлении записи используется `id`=$insert_id
-     * @throws exception
+     * @throws \exception
      */
     function insert($records, $insert_id, where $where = null)
     {
@@ -1158,10 +1147,10 @@ class db
         $id = $insert_id;
         $id = ext_tools::xss_filter($id);
         if(is_null($where)) {
-            if(is_null($id) && is_null($id))
-                ext_tools::error('last_id null');
+            if(is_null($id))
+                ext_tools::error('id null');
 
-            $sql = "SELECT `id` FROM `" . $this->table . "` WHERE `id` = '" . $id . "'";
+            $sql = "SELECT `id` FROM `" . $this->table . "` WHERE `id` = '" . $id . "' LIMIT 0,1";
             $result = $link->query($sql);
             if($link->errno !== 0)
                 ext_tools::error($link->error . " sql:" . $sql);
@@ -1288,12 +1277,12 @@ class db
         return true;
     }
 
-    function get_count(where $where = null, $column_name = "id", $is_distinct = false, $magic_quotes = true)
+    function get_count(where $where = null, $column = "id", $is_distinct = false, $magic_quotes = true)
     {
         $link = static::get_mysqli_link();
         $magic_quotes = $magic_quotes ? '`' : '';
-        $column_name = $magic_quotes . $column_name . $magic_quotes;
-        $sql = "SELECT COUNT(" . ($is_distinct ? "DISTINCT " : "") . "$column_name) AS `_count` FROM `" . $this->table . "`";
+        $column = $magic_quotes . $column . $magic_quotes;
+        $sql = "SELECT COUNT(" . ($is_distinct ? "DISTINCT " : "") . "$column) AS `_count` FROM `" . $this->table . "`";
         if(!is_null($where) and !is_null($where->_get()))
             $sql .= "WHERE " . $where->_get();
         $result = $link->query($sql);
@@ -1322,33 +1311,33 @@ class db
         return count($itog_) ? $itog_ : null;
     }
 
-    function get_unique_vals_in_column($column_name, where $where = null, $magic_quotes = true)
+    function get_unique_vals_in_column($column, where $where = null, $magic_quotes = true)
     {
-        $column_name = ext_tools::xss_filter($column_name);
+        $column = ext_tools::xss_filter($column);
         $magic_quotes = $magic_quotes ? '`' : '';
-        $sql = "SELECT DISTINCT $magic_quotes$column_name$magic_quotes FROM `" . $this->table . "`";
+        $sql = "SELECT DISTINCT $magic_quotes$column$magic_quotes FROM `" . $this->table . "`";
         if(!is_null($where))
             $sql .= "WHERE " . $where->_get();
         $result = static::raw_sql($sql, true);
-        return is_null($result) ? null : (isset($result[$column_name]) ? $result[$column_name] : $result[0]);
+        return is_null($result) ? null : (isset($result[$column]) ? $result[$column] : $result[0]);
     }
 
-    function get_min_and_max_in_column($column_name, where $where = null, $magic_quotes = true)
+    function get_min_and_max_in_column($column, where $where = null, $magic_quotes = true)
     {
-        $column_name = ext_tools::xss_filter($column_name);
+        $column = ext_tools::xss_filter($column);
         $magic_quotes = $magic_quotes ? '`' : '';
         $select = new select_exp();
         $select->add_column([
-            'column_name' => 'IFNULL(MIN(' . $magic_quotes . $column_name . $magic_quotes . '),0)',
-            'as_column_name' => 'min',
-            'column_name_xss_filter' => false,
-            'column_name_magic_quotes' => false
+            'column' => 'IFNULL(MIN(' . $magic_quotes . $column . $magic_quotes . '),0)',
+            'as_column' => 'min',
+            'column_xss_filter' => false,
+            'column_magic_quotes' => false
         ]);
         $select->add_column([
-            'column_name' => 'IFNULL(MAX(' . $magic_quotes . $column_name . $magic_quotes . '),0)',
-            'as_column_name' => 'max',
-            'column_name_xss_filter' => false,
-            'column_name_magic_quotes' => false
+            'column' => 'IFNULL(MAX(' . $magic_quotes . $column . $magic_quotes . '),0)',
+            'as_column' => 'max',
+            'column_xss_filter' => false,
+            'column_magic_quotes' => false
         ]);
         $res = $this->get_rows(new select_q(null, $where, null, null, 0, 0, $select));
         $min = $res[0]['min'];
@@ -1376,7 +1365,7 @@ class db
      * Повторная блокировка запрещена, так как приводит к автоматической предварительной разблокировке таблиц. Если она вам нужна, то предварительно вызовите unlock_tables. Однако, исключение не будет вызываться, если текущая таблица была раннее заблокирована.
      * @see unlock_tables
      * @link https://dev.mysql.com/doc/refman/5.7/en/lock-tables.html
-     * @throws exception
+     * @throws \exception
      */
     function smart_write_lock()
     {
@@ -1386,7 +1375,7 @@ class db
     /**
      * @see smart_write_lock
      * @param null|string $this_table
-     * @throws exception
+     * @throws \exception
      */
     static function s_smart_write_lock($this_table = null)
     {
@@ -1574,9 +1563,9 @@ class db
      * @param int $group_id ID группы. Если ID 0, то фильтр будет глобальный
      * @param filter_type $filter_type Тип Фильтра
      * @return bool|int|null
-     * @throws exception
+     * @throws \exception
      */
-    function add_filter($title, $description, $group_id = 0, $filter_type, $column_name = null)
+    function add_filter($title, $description, $group_id = 0, $filter_type, $column = null)
     {
         if(!static::type_is_filter($filter_type)) {
             ext_tools::error('Недопустимый тип фильтра');
@@ -1589,24 +1578,24 @@ class db
                 return false;
             }
         }
-        return $this->group(null, $title, $description, $group_id, $filter_type, $column_name);
+        return $this->group(null, $title, $description, $group_id, $filter_type, $column);
     }
 
     /**
      * @param int $obj_id Общий идентификатор
      * @param int $group_id Идентификатор группы типа qdbm_group_type::standard
-     * @param array $filers_vals Ассоциативный массив: Имя столбца (column_name) фильтра => Значение
+     * @param array $filers_vals Ассоциативный массив: Имя столбца (column) фильтра => Значение
      */
     function save_values_for_filters($obj_id, $group_id = 0, $filers_vals)
     {
         $f_result = $this->get_recursive_filters($group_id);
         $table = $this->table;
         foreach ($f_result as $val) {
-            $column_name = $val['column_name'];
-            if(isset($filers_vals[$column_name])) {
+            $column = $val['column'];
+            if(isset($filers_vals[$column])) {
                 $filter_table = $val['parent_id'] ? $table . "_" . $group_id . "_filters" : $table;
                 $db = $this->get_gf_db($filter_table);
-                $rec = [$column_name => $filers_vals[$column_name]];
+                $rec = [$column => $filers_vals[$column]];
                 $db->insert($rec, $obj_id);
             }
         }
@@ -1622,7 +1611,7 @@ class db
         return $this->group($id, $title, $description, $parent_id, $force_edit ? group_type::standard : $res[0]['group_type']);
     }
 
-    private function group($id = null, $title, $description, $parent_id, $group_type, $column_name = null)
+    private function group($id = null, $title, $description, $parent_id, $group_type, $column = null)
     {
         $db = $this->get_gf_db();
         $new_id = $db->get_nii();
@@ -1633,7 +1622,7 @@ class db
             'title' => $title,
             'description' => $description,
             'parent_id' => $parent_id,
-            'column_name' => ''
+            'column' => ''
         ];
 
         $column_type = null;
@@ -1654,12 +1643,12 @@ class db
             }
         $db->insert($records, $new_id);
         if(!is_null($column_type)) {
-            if(is_null($column_name))
-                $column_name = "filter_" . $new_id;
+            if(is_null($column))
+                $column = "filter_" . $new_id;
             $stp_group = $parent_id ? $this->get_stp_group_for_filter($parent_id) : null;
             $records = [
                 'group_type' => $group_type,
-                'column_name' => $column_name
+                'column' => $column
             ];
             $db->insert($records, $new_id);
             $filter_table = null;
@@ -1672,8 +1661,8 @@ class db
             } else
                 $filter_table = $table;
             $db = $this->get_gf_db($filter_table);
-            if(!$db->check_column($column_name))
-                $db->add_column($column_name, gf_schema::column_name['type'], gf_schema::column_name['is_add_index']);
+            if(!$db->check_column($column))
+                $db->add_column($column, gf_schema::column['type'], gf_schema::column['is_add_index']);
         }
         return $new_id;
     }
@@ -1712,8 +1701,8 @@ class db
                 $stp_group_id = $this->get_stp_group_for_filter($id)[0]['id'];
                 $filters_table = $table . "_" . $stp_group_id . "_filters";
                 $db = $this->get_gf_db($filters_table);
-                if($db->check_column($group_inf[0]['column_name']))
-                    $db->remove_column($group_inf[0]['column_name']);
+                if($db->check_column($group_inf[0]['column']))
+                    $db->remove_column($group_inf[0]['column']);
             }
         }
 
@@ -1742,7 +1731,7 @@ class db
     /**
      * Получить родительскую группу типа qdbm_group_type::standard для фильтра
      * @param int $id Идентификатор фильтра
-     * @throws exception
+     * @throws \exception
      */
     function get_stp_group_for_filter($id)
     {
@@ -1874,7 +1863,7 @@ class db
             $filters_table = $this->table . "_" . $stp_group_id . "_filters";
             $db = $this->get_gf_db($filters_table);
         }
-        $res = $db->get_unique_vals_in_column($filter[0]['column_name'], $where, $magic_quotes);
+        $res = $db->get_unique_vals_in_column($filter[0]['column'], $where, $magic_quotes);
         return $res;
     }
 
@@ -1886,7 +1875,7 @@ class db
             $filters_table = $this->table . "_" . $stp_group_id . "_filters";
             $db = $this->get_gf_db($filters_table);
         }
-        $res = $db->get_min_and_max_in_column($filter[0]['column_name'], $where, $magic_quotes);
+        $res = $db->get_min_and_max_in_column($filter[0]['column'], $where, $magic_quotes);
         return $res;
     }
 
