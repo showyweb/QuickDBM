@@ -1,7 +1,7 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 4.0.0
+ * Version: 4.2.0
  * Author:  Novojilov Pavel Andreevich
  * Support: http://SHOWYWEB.ru
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
@@ -44,6 +44,10 @@ abstract class filter_type
     const int_filter = "int_filter";
     const bool_filter = "bool_filter";
     const int_band_filter = "int_band_filter";
+    const int_multiple_band_filter = "int_multiple_band_filter";
+    const datetime_band_filter = 'datetime_band_filter';
+    const datetime_multiple_band_filter = 'datetime_multiple_band_filter';
+
     const all = 'all';
 }
 
@@ -1110,9 +1114,9 @@ class db
     /**
      * Возвращает новый id для вставки новой записи
      * @param bool $is_auto_write_lock По умолчанию блокирует другие потоки в базе, чтобы не возник конфликт вставки с одинаковым id
-     * @see smart_write_lock
      * @return int
      * @throws \exception
+     * @see smart_write_lock
      */
     function get_new_insert_id($is_auto_write_lock = true)
     {
@@ -1363,9 +1367,9 @@ class db
      * Ставит блокировку типа WRITE на активные таблицы (таблица добавляется в активные при вызове new qdbm)
      *
      * Повторная блокировка запрещена, так как приводит к автоматической предварительной разблокировке таблиц. Если она вам нужна, то предварительно вызовите unlock_tables. Однако, исключение не будет вызываться, если текущая таблица была раннее заблокирована.
-     * @see unlock_tables
-     * @link https://dev.mysql.com/doc/refman/5.7/en/lock-tables.html
      * @throws \exception
+     * @link https://dev.mysql.com/doc/refman/5.7/en/lock-tables.html
+     * @see unlock_tables
      */
     function smart_write_lock()
     {
@@ -1373,9 +1377,9 @@ class db
     }
 
     /**
-     * @see smart_write_lock
      * @param null|string $this_table
      * @throws \exception
+     * @see smart_write_lock
      */
     static function s_smart_write_lock($this_table = null)
     {
@@ -1635,7 +1639,12 @@ class db
                     break;
                 case filter_type::int_band_filter:
                 case filter_type::int_filter:
+                case filter_type::int_multiple_band_filter:
                     $column_type = type_column::int;
+                    break;
+                case filter_type::datetime_band_filter:
+                case filter_type::datetime_multiple_band_filter:
+                    $column_type = type_column::datetime;
                     break;
                 case filter_type::string_filter:
                     $column_type = type_column::small_string;
