@@ -2,7 +2,7 @@
     "name": "showyweb/quick-dbm",
     "description": "Quick database manager",
     "type": "library",
-    "license": "MIT license. http://www.opensource.org/licenses/mit-license.php",
+    "license": "MIT",
     "authors": [
         {
             "name": "SHOWYWeb",
