@@ -1,7 +1,7 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 4.3.1
+ * Version: 4.3.3
  * Author:  Novojilov Pavel Andreevich
  * Support: http://SHOWYWEB.ru
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
@@ -340,6 +340,10 @@ class ext_tools
             $filters = explode(';', $filters);
             $filters_kv = [];
             foreach ($filters as $i => $values) {
+                if(empty($values)) {
+                    continue;
+                }
+
                 $values = explode('|', $values);
                 $filter = $values[0];
                 $values = $values[1];
@@ -1000,7 +1004,7 @@ class db
     public function __construct(schema $qdbm_schema)
     {
         if(is_null(static::$path_cache)) {
-            static::$path_cache = $_SERVER['DOCUMENT_ROOT'] . "/.QuickDBM_cache";
+            static::$path_cache = __DIR__ . "/.QuickDBM_cache";
             if(!is_dir(static::$path_cache))
                 mkdir(static::$path_cache);
             static::$path_cache .= "/cache";
@@ -1325,9 +1329,6 @@ class db
      */
     function insert($records, $insert_id, where $where = null)
     {
-        $tmp_w_l = static::$write_locked;
-        if(!$tmp_w_l)
-            $this->smart_write_lock();
         $link = static::get_mysqli_link();
         $id = $insert_id;
         $id = ext_tools::xss_filter($id);
@@ -1448,9 +1449,6 @@ class db
         unset($s_values, $bind_params);
         if($stmt->errno !== 0)
             ext_tools::error($stmt->error . " sql:" . $sql);
-
-        if(!$tmp_w_l)
-            $this->unlock_tables();
     }
 
     function remove_rows(where $where)
