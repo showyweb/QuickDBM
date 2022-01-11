@@ -1,14 +1,14 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 4.3.3
+ * Version: 4.4.0
  * Author:  Novojilov Pavel Andreevich
- * Support: http://SHOWYWEB.ru
+ * Support: https://github.com/showyweb/QuickDBM
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
  * Copyright (c) 2017 Pavel Novojilov
  */
 
-namespace qdbm;
+namespace showyweb\qdbm;
 
 abstract class order
 {

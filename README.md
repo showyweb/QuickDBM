@@ -3,8 +3,8 @@
 # Использование
 ```php
 <?php
-require_once "QuickDBM.php";
-use qdbm\{db, schema, type_column, ext_tools as et, where, select_q, select_exp, left_join_on, order, filter_type};
+require_once 'vendor/autoload.php';
+use showyweb\qdbm\{db, schema, type_column, ext_tools as et, where, select_q, select_exp, left_join_on, order, filter_type};
 db::set_mysqli_auth([
         'db_name' => '',
         'host' => '',

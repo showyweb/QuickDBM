@@ -1,1 +1,4 @@
 .QuickDBM_cache
+.idea
+/vendor/
+/composer.lock

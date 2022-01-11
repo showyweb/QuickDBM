@@ -1,0 +1,21 @@
+{
+    "name": "showyweb/quick-dbm",
+    "description": "Quick database manager",
+    "type": "library",
+    "license": "MIT license. http://www.opensource.org/licenses/mit-license.php",
+    "authors": [
+        {
+            "name": "SHOWYWeb",
+            "email": "novojilov_pavel@mail.ru"
+        }
+    ],
+    "minimum-stability": "stable",
+    "require": {
+        "php": ">=5.6.0"
+    },
+    "autoload": {
+        "classmap": [
+             "src/"
+        ]
+    }
+}
