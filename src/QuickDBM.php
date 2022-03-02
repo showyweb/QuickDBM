@@ -1,7 +1,7 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 4.5.0
+ * Version: 4.5.1
  * Author:  Novojilov Pavel Andreevich
  * Support: https://github.com/showyweb/QuickDBM
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
@@ -949,24 +949,24 @@ class left_join_on
  *
  * Имя константы будет равно имени столбца, а значение константы описывает сам столбец и имеет структуру:
  *
- * array('type'=>qdbm\type_column, 'is_xss_filter'=>bool,'is_add_index'=>bool)
+ * array('type'=>showyweb\qdbm\type_column, 'is_xss_filter'=>bool,'is_add_index'=>bool)
  *
  * Ключ type - Тип столбца, устанавливается только при автосоздании столбца, если столбец существует, то значение $value только фильтруется согласно типу.
  *
  * Ключ is_xss_filter - Если true, то фильтр sql/xss включен.
  *
- * Ключ is_add_index - Если true, то при автосоздании столбца, автоматически добавляется индекс sql типа INDEX. Для типа qdbm\type_column::string, sql тип индекса будет FULLTEXT
+ * Ключ is_add_index - Если true, то при автосоздании столбца, автоматически добавляется индекс sql типа INDEX. Для типа showyweb\qdbm\type_column::string, sql тип индекса будет FULLTEXT
  *
  * Например:
  *
- * class test_db_c extends qdbm\schema
+ * class test_db_c extends showyweb\qdbm\schema
  * {
  *
  * public $tab_name = "test";
  *
- * const chat_id = array('type' => qdbm\type_column::unsigned_big_int, 'is_xss_filter' => true, 'is_add_index' => true);
+ * const chat_id = array('type' => showyweb\qdbm\type_column::unsigned_big_int, 'is_xss_filter' => true, 'is_add_index' => true);
  *
- * const key = array('type' => qdbm\type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
+ * const key = array('type' => showyweb\qdbm\type_column::small_string, 'is_xss_filter' => true, 'is_add_index' => true);
  *
  * }
  *
@@ -991,7 +991,7 @@ abstract class schema
     const _order = array('type' => type_column::unsigned_big_int, 'is_xss_filter' => true, 'is_add_index' => true);
 
     /**
-     * qdbm\schema constructor.
+     * showyweb\qdbm\schema constructor.
      * @param string $tab_name Если не null, то переопределяет свойство $tab_name
      * @throws \exception
      */
@@ -1765,7 +1765,7 @@ class db
     static function type_is_group($group_type)
     {
 
-        $group_constants = ext_tools::get_constants_in_class('qdbm\group_type');
+        $group_constants = ext_tools::get_constants_in_class('showyweb\qdbm\group_type');
         foreach ($group_constants as $type) {
             if($type == $group_type and $group_type != group_type::all)
                 return true;
@@ -1775,7 +1775,7 @@ class db
 
     static function type_is_filter($filter_type)
     {
-        $filter_constants = ext_tools::get_constants_in_class('qdbm\filter_type');
+        $filter_constants = ext_tools::get_constants_in_class('showyweb\qdbm\filter_type');
         foreach ($filter_constants as $type) {
             if($type == $filter_type and $filter_type != filter_type::all)
                 return true;
@@ -2042,7 +2042,7 @@ class db
             $where_main->equally('filter_type', $group_type);
         } elseif($group_type == group_type::all) {
             $ext_where = new where();
-            $group_constants = ext_tools::get_constants_in_class('qdbm\group_type');
+            $group_constants = ext_tools::get_constants_in_class('showyweb\qdbm\group_type');
             $group_constants_len = count($group_constants);
             $i = 0;
             foreach ($group_constants as $type) {
@@ -2073,7 +2073,7 @@ class db
             $where_main->equally('filter_type', $filter_type);
         } elseif($filter_type == filter_type::all) {
             $ext_where = new where();
-            $filter_constants = ext_tools::get_constants_in_class('qdbm\filter_type');
+            $filter_constants = ext_tools::get_constants_in_class('showyweb\qdbm\filter_type');
             $filter_constants_len = count($filter_constants);
             $i = 0;
             foreach ($filter_constants as $type) {
