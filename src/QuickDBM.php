@@ -1,7 +1,7 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 4.4.2
+ * Version: 4.5.0
  * Author:  Novojilov Pavel Andreevich
  * Support: https://github.com/showyweb/QuickDBM
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
@@ -316,7 +316,7 @@ class ext_tools
      * @param callable|null $custom_filters_callback
      * @return where
      */
-    static function filter_scope(string $filters = null, string $search = null, array $search_columns = null, array $map_columns = null, where $where = null, callable $custom_filters_callback = null)
+    static function filter_scope(string $filters = null, string $search = null, array $search_columns = null, array $map_columns = null, where $where = null, callable $custom_filters_callback = null, bool $value_quotes = true, bool $magic_quotes = true)
     {
         $f_values_type_filter = function (&$f_value, $f_type) {
             foreach ($f_value as $i => $v)
@@ -334,7 +334,7 @@ class ext_tools
 
         if (!is_array($map_columns))
             $map_columns = [];
-        $where = is_null($where) ? new where() : $where;
+        $where = is_null($where) ? new where($value_quotes, $magic_quotes) : $where;
 
         if (!empty($filters)) {
             $filters = explode(';', $filters);
@@ -374,7 +374,7 @@ class ext_tools
                         $f_name = $map_columns[$f_name];
                     $f_type = $f_inf[1];
                     $f_value = $values[$index];
-                    $f_where = new where();
+                    $f_where = new where($value_quotes, $magic_quotes);
 
                     switch ($f_type) {
                         case filter_type::bool_filter:
@@ -396,11 +396,11 @@ class ext_tools
                         case filter_type::datetime_band_filter:
                             $f_value = explode(':', $f_value);
                             $f_values_type_filter($f_value, $f_type);
-                            $s_f_where = new where();
+                            $s_f_where = new where($value_quotes, $magic_quotes);
                             $is_xss_filter = $f_type !== filter_type::datetime_band_filter;
                             if ($f_value[0] !== '')
                                 $s_f_where->more_or_equally($f_name, $f_value[0], true, null, $is_xss_filter);
-                            if ($f_value[1] !== '')
+                            if (isset($f_value[1]) && $f_value[1] !== '')
                                 $s_f_where->less_or_equally($f_name, $f_value[1], true, null, $is_xss_filter);
                             $f_where->push_where($s_f_where);
                             if ($f_value[0] === '' || intval($f_value[0]) === 0)
@@ -410,11 +410,11 @@ class ext_tools
                         case filter_type::datetime_multiple_band_filter:
                             $is_xss_filter = $f_type !== filter_type::datetime_multiple_band_filter;
                             $f_values = explode(',', $f_value);
-                            $s_f_where = new where();
+                            $s_f_where = new where($value_quotes, $magic_quotes);
                             foreach ($f_values as $f_value) {
                                 $f_value = explode(':', $f_value);
                                 $f_values_type_filter($f_value, $f_type);
-                                $s_f_where2 = new where();
+                                $s_f_where2 = new where($value_quotes, $magic_quotes);
                                 if ($f_value[0] !== '')
                                     $s_f_where2->more_or_equally($f_name, $f_value[0], true, null, $is_xss_filter);
                                 if ($f_value[1] !== '')
@@ -436,10 +436,13 @@ class ext_tools
             }
         }
         if (!empty($search)) {
-            $search_where = new where();
+            $search_where = new where($value_quotes, $magic_quotes);
             if (is_array($search_columns))
-                foreach ($search_columns as $column)
+                foreach ($search_columns as $column) {
+                    if (isset($map_columns[$column]))
+                        $column = $map_columns[$column];
                     $search_where->partial_like($column, $search, false);
+                }
             $where->push_where($search_where);
         }
         return $where;
@@ -450,9 +453,17 @@ class ext_tools
 class where
 {
     private $where = null;
+    private $value_quotes = true;
+    private $magic_quotes = true;
 
-    function __construct()
+    /**
+     * @param bool $value_quotes //Экранировать значения по умолчанию
+     * @param bool $magic_quotes //Экранировать названия столбцов по умолчанию
+     */
+    function __construct(bool $value_quotes = true, bool $magic_quotes = true)
     {
+        $this->value_quotes = $value_quotes;
+        $this->magic_quotes = $magic_quotes;
         return $this;
     }
 
@@ -461,7 +472,7 @@ class where
         return $this->where;
     }
 
-    private function push($text, $before_use_and)
+    private function push(string $text, bool $before_use_and)
     {
         if(is_null($this->where))
             $this->where = $text;
@@ -470,15 +481,17 @@ class where
     }
 
 
-    private function gen_column($column, $sql_function, $magic_quotes = true)
+    private function gen_column(string $column, ?string $sql_function = null, ?bool $magic_quotes = null)
     {
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         $magic_quotes = $magic_quotes ? '`' : '';
         $sql_function = ext_tools::xss_filter($sql_function);
         return is_null($sql_function) ? $magic_quotes . $column . $magic_quotes : $sql_function . '(' . $magic_quotes . $column . $magic_quotes . ')';
     }
 
 
-    function push_where(where $object, $before_use_and = true)
+    function push_where(where $object, bool $before_use_and = true)
     {
         $where_text = $object->_get();
         if($where_text == "")
@@ -488,8 +501,12 @@ class where
         return $this;
     }
 
-    function equally($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function equally(string $column, string $value, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         if(gettype($value) == type_column::bool)
             $value = $value ? 1 : 0;
         if($xss_filter) {
@@ -501,8 +518,12 @@ class where
         return $this;
     }
 
-    function not_equally($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function not_equally(string $column, string $value, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         if(gettype($value) == type_column::bool)
             $value = $value ? 1 : 0;
         if($xss_filter) {
@@ -514,8 +535,12 @@ class where
         return $this;
     }
 
-    private function _in($is_not_in = false, $column = null, array $values = null, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    private function _in(bool $is_not_in = false, ?string $column = null, array $values = null, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         $value_quotes = $value_quotes ? "'" : "";
         if ($xss_filter)
             $column = ext_tools::xss_filter($column);
@@ -531,18 +556,30 @@ class where
         return $this;
     }
 
-    function in($column, array $values, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function in(string $column, array $values, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         return $this->_in(false, $column, $values, $before_use_and, $sql_function, $xss_filter, $value_quotes, $magic_quotes);
     }
 
-    function not_in($column, array $values, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function not_in(string $column, array $values, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         return $this->_in(true, $column, $values, $before_use_and, $sql_function, $xss_filter, $value_quotes, $magic_quotes);
     }
 
-    function more($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function more(string $column, string $value, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
             $value = ext_tools::xss_filter($value);
@@ -552,8 +589,12 @@ class where
         return $this;
     }
 
-    function more_or_equally($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function more_or_equally(string $column, string $value, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
             $value = ext_tools::xss_filter($value);
@@ -563,8 +604,12 @@ class where
         return $this;
     }
 
-    function less($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function less(string $column, string $value, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
             $value = ext_tools::xss_filter($value);
@@ -574,8 +619,13 @@ class where
         return $this;
     }
 
-    function less_or_equally($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+
+    function less_or_equally(string $column, string $value, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
             $value = ext_tools::xss_filter($value);
@@ -585,7 +635,7 @@ class where
         return $this;
     }
 
-    function is_null($column, $before_use_and = true, $sql_function = null, $xss_filter = true)
+    function is_null(string $column, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true)
     {
         if($xss_filter)
             $column = ext_tools::xss_filter($column);
@@ -593,7 +643,7 @@ class where
         return $this;
     }
 
-    function is_not_null($column, $before_use_and = true, $sql_function = null, $xss_filter = true)
+    function is_not_null(string $column, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true)
     {
         if($xss_filter)
             $column = ext_tools::xss_filter($column);
@@ -601,8 +651,12 @@ class where
         return $this;
     }
 
-    function partial_like($column, $value, $before_use_and = true, $sql_function = null, $xss_filter = true, $value_quotes = true, $magic_quotes = true)
+    function partial_like(string $column, string $value, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         $value_quotes = $value_quotes ? "'" : "";
         if($xss_filter) {
             $column = ext_tools::xss_filter($column);
@@ -623,8 +677,12 @@ class where
      * @param bool $magic_quotes
      * @return $this
      */
-    function full_text_search_bm_not_safe($column, $value, $before_use_and = true, $sql_function = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
+    function full_text_search_bm_not_safe(string $column, string $value, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter_column = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         $value_quotes = $value_quotes ? "'" : "";
         if($xss_filter_column)
             $column = ext_tools::xss_filter($column);
@@ -642,8 +700,12 @@ class where
      * @param bool $magic_quotes
      * @return $this
      */
-    function regexp_not_safe($column, $value, $before_use_and = true, $sql_function = null, $xss_filter_column = true, $value_quotes = true, $magic_quotes = true)
+    function regexp_not_safe(string $column, string $value, bool $before_use_and = true, ?string $sql_function = null, bool $xss_filter_column = true, ?bool $value_quotes = null, ?bool $magic_quotes = null)
     {
+        if (is_null($value_quotes))
+            $value_quotes = $this->value_quotes;
+        if (is_null($magic_quotes))
+            $magic_quotes = $this->magic_quotes;
         $value_quotes = $value_quotes ? "'" : "";
         if($xss_filter_column)
             $column = ext_tools::xss_filter($column);
