@@ -1,7 +1,7 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 4.5.1
+ * Version: 4.5.2
  * Author:  Novojilov Pavel Andreevich
  * Support: https://github.com/showyweb/QuickDBM
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
