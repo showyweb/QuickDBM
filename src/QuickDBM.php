@@ -1415,7 +1415,6 @@ class db
                         'order_by' => '_order',
                         'order_method' => order::desc,
                         'select' => (new select_exp())->add_column(null, '_order', 'order_max', 'MAX'),
-                        'group_by' => '_order'
                     ];
                     $res = static::get_rows(new select_q($args));
                     $_order = $res[0]['order_max'] + 1;
