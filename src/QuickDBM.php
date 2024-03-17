@@ -1,7 +1,7 @@
 <?
 /**
  * Name:    SHOWYWeb QuickDBM
- * Version: 4.5.2
+ * Version: 4.5.3
  * Author:  Novojilov Pavel Andreevich
  * Support: https://github.com/showyweb/QuickDBM
  * License: MIT license. http://www.opensource.org/licenses/mit-license.php
@@ -162,7 +162,7 @@ class ext_tools
         if(!$max_level)
             $variable = static::characters_escape($variable);
         $characters_allowed = "йцукеёнгшщзхъфывапролджэячсмитьбюqwertyuiopasdfghjklzxcvbnm";
-        $characters_allowed .= mb_strtoupper($characters_allowed, 'UTF-8') . "1234567890-_" . ($max_level ? "" : ".,&#;@/=") . " ";
+        $characters_allowed .= mb_strtoupper($characters_allowed, 'UTF-8') . "1234567890-_" . ($max_level ? "" : ".,&#;@/=". PHP_EOL) . " ";
         $characters_allowed_arr = static::utf8_str_split($characters_allowed);
         $variable_for_sql_arr = static::utf8_str_split($variable);
         unset($characters_allowed, $variable_for_sql);
