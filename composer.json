@@ -31,6 +31,8 @@
     "scripts": {
         "test": "phpunit",
         "test-unit": "phpunit tests/ExtToolsTest.php tests/WhereTest.php tests/SchemaTest.php tests/SelectQTest.php",
-        "test-integration": "phpunit tests/DatabaseTest.php"
+        "test-integration": "phpunit tests/DatabaseTest.php",
+        "test-sqlite": "DB_DRIVER=sqlite phpunit",
+        "test-mysql": "DB_DRIVER=mysql phpunit tests/DatabaseTest.php"
     }
 }

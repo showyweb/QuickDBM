@@ -16,10 +16,19 @@
         </whitelist>
     </filter>
     <php>
+        <!-- По умолчанию используем SQLite в памяти для быстрых тестов -->
+        <env name="DB_DRIVER" value="sqlite"/>
+        <env name="DB_PATH" value=":memory:"/>
+        <env name="DB_PREFIX" value="test_"/>
+
+        <!-- Для тестирования с MySQL раскомментируйте следующие строки и закомментируйте настройки SQLite выше -->
+        <!--
+        <env name="DB_DRIVER" value="mysql"/>
         <env name="DB_HOST" value="localhost"/>
         <env name="DB_NAME" value="quickdbm_test"/>
         <env name="DB_USER" value="root"/>
         <env name="DB_PASSWORD" value=""/>
         <env name="DB_PREFIX" value="test_"/>
+        -->
     </php>
 </phpunit>

@@ -27,10 +27,16 @@ class TestProductSchema extends schema
 /**
  * Интеграционные тесты для класса db
  *
- * ВАЖНО: Эти тесты ТРЕБУЮТ настроенного подключения к тестовой базе данных MySQL.
- * Если MySQL недоступен, тесты завершатся с ошибкой.
+ * По умолчанию использует SQLite в памяти (:memory:) - быстро и без внешних зависимостей.
+ * Для тестирования с MySQL установите переменную окружения DB_DRIVER=mysql.
  *
- * Настройте переменные окружения в phpunit.xml:
+ * Переменные окружения для SQLite (используются по умолчанию):
+ * - DB_DRIVER=sqlite (по умолчанию)
+ * - DB_PATH=:memory: (по умолчанию)
+ * - DB_PREFIX=test_ (по умолчанию)
+ *
+ * Переменные окружения для MySQL:
+ * - DB_DRIVER=mysql
  * - DB_HOST
  * - DB_NAME
  * - DB_USER
@@ -44,57 +50,74 @@ class DatabaseTest extends TestCase
 
     public static function setUpBeforeClass(): void
     {
-        $host = getenv('DB_HOST') ?: 'localhost';
-        $dbName = getenv('DB_NAME') ?: 'quickdbm_test';
-        $user = getenv('DB_USER') ?: 'root';
-        $password = getenv('DB_PASSWORD') ?: '';
-        $prefix = getenv('DB_PREFIX') ?: 'test_';
+        // Определяем драйвер из переменной окружения (по умолчанию sqlite)
+        $driver = getenv('DB_DRIVER') ?: 'sqlite';
 
-        // Проверяем подключение к MySQL
-        try {
-            $pdo = new \PDO(
-                "mysql:host={$host}",
-                $user,
-                $password,
-                [
-                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
-                    \PDO::ATTR_EMULATE_PREPARES => false
-                ]
-            );
-        } catch (\PDOException $e) {
-            throw new \Exception(
-                "ОШИБКА: MySQL недоступен!\n" .
-                "Подключение: {$user}@{$host}\n" .
-                "Ошибка: " . $e->getMessage() . "\n" .
-                "Настройте подключение к MySQL в phpunit.xml или через переменные окружения."
-            );
+        if ($driver === 'sqlite') {
+            // SQLite в памяти - быстро и не требует внешней БД
+            $dbPath = getenv('DB_PATH') ?: ':memory:';
+            $prefix = getenv('DB_PREFIX') ?: 'test_';
+
+            db::set_pdo_auth([
+                'driver' => 'sqlite',
+                'db_path' => $dbPath,
+                'table_prefix' => $prefix
+            ]);
+        } else {
+            // MySQL подключение (для обратной совместимости)
+            $host = getenv('DB_HOST') ?: 'localhost';
+            $dbName = getenv('DB_NAME') ?: 'quickdbm_test';
+            $user = getenv('DB_USER') ?: 'root';
+            $password = getenv('DB_PASSWORD') ?: '';
+            $prefix = getenv('DB_PREFIX') ?: 'test_';
+
+            // Проверяем подключение к MySQL
+            try {
+                $pdo = new \PDO(
+                    "mysql:host={$host}",
+                    $user,
+                    $password,
+                    [
+                        \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                        \PDO::ATTR_EMULATE_PREPARES => false
+                    ]
+                );
+            } catch (\PDOException $e) {
+                throw new \Exception(
+                    "ОШИБКА: MySQL недоступен!\n" .
+                    "Подключение: {$user}@{$host}\n" .
+                    "Ошибка: " . $e->getMessage() . "\n" .
+                    "Настройте подключение к MySQL в phpunit.xml или через переменные окружения."
+                );
+            }
+
+            // Создаём тестовую базу данных, если её нет
+            try {
+                $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}`");
+            } catch (\PDOException $e) {
+                throw new \Exception("Не удалось создать базу данных: $dbName");
+            }
+
+            // Выбираем базу данных
+            try {
+                $pdo->exec("USE `{$dbName}`");
+            } catch (\PDOException $e) {
+                throw new \Exception("Не удалось выбрать базу данных: $dbName");
+            }
+
+            // Закрываем соединение (опционально, будет закрыто автоматически)
+            $pdo = null;
+
+            // Настраиваем QuickDBM для MySQL
+            db::set_pdo_auth([
+                'driver' => 'mysql',
+                'db_name' => $dbName,
+                'host' => $host,
+                'user' => $user,
+                'password' => $password,
+                'table_prefix' => $prefix
+            ]);
         }
-
-// Создаём тестовую базу данных, если её нет
-        try {
-            $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}`");
-        } catch (\PDOException $e) {
-            throw new \Exception("Не удалось создать базу данных: $dbName");
-        }
-
-// Выбираем базу данных
-        try {
-            $pdo->exec("USE `{$dbName}`");
-        } catch (\PDOException $e) {
-            throw new \Exception("Не удалось выбрать базу данных: $dbName");
-        }
-
-// Закрываем соединение (опционально, будет закрыто автоматически)
-        $pdo = null;
-
-        // Настраиваем QuickDBM
-        db::set_pdo_auth([
-            'db_name' => $dbName,
-            'host' => $host,
-            'user' => $user,
-            'password' => $password,
-            'table_prefix' => $prefix
-        ]);
 
         self::$schema = new TestProductSchema();
         self::$db = new db(self::$schema);

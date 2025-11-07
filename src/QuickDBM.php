@@ -916,7 +916,11 @@ class select_q
             ext_tools::error("offset не может быть без limit");
 
         if ($for_update) {
-            $sql .= " FOR UPDATE";
+            // SQLite не поддерживает FOR UPDATE, но обеспечивает блокировку через транзакции
+            $driver = db::get_driver();
+            if ($driver !== 'sqlite') {
+                $sql .= " FOR UPDATE";
+            }
         }
 
         return ['sql' => $sql, 'params' => $where_data['params']];
@@ -1159,7 +1163,8 @@ class db
             $str = ext_tools::open_txt_file(static::$path_cache, null);
             static::$check_column_table_cache = is_null($str) ? [] : unserialize($str);
         }
-        $c_key = static::$pdo_auth['db_name'] . '.' . $this->table;
+        $db_name = isset(static::$pdo_auth['db_name']) ? static::$pdo_auth['db_name'] : 'sqlite';
+        $c_key = $db_name . '.' . $this->table;
         if (!isset(static::$check_column_table_cache[$c_key])) {
             static::$check_column_table_cache[$c_key] = [];
             static::$cache_is_modified = true;
@@ -1169,15 +1174,36 @@ class db
         $name = ext_tools::xss_filter($name);
         if (isset(static::$check_column_table_cache[$c_key][$name]))
             return static::$check_column_table_cache[$c_key][$name];
-        $sql = "SHOW COLUMNS FROM `" . $this->table . "` LIKE :name";
+
+        $driver = static::get_driver();
         try {
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([':name' => $name]);
-            $itog = $stmt->fetch(PDO::FETCH_ASSOC);
-            if ($itog === false)
-                return false;
-            else
-                static::$check_column_table_cache[$c_key][$name] = true;
+            if ($driver === 'sqlite') {
+                // SQLite использует PRAGMA для проверки колонок
+                $sql = "PRAGMA table_info(`" . $this->table . "`)";
+                $stmt = $pdo->query($sql);
+                $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $found = false;
+                foreach ($columns as $col) {
+                    if ($col['name'] === $name) {
+                        $found = true;
+                        break;
+                    }
+                }
+                if (!$found)
+                    return false;
+                else
+                    static::$check_column_table_cache[$c_key][$name] = true;
+            } else {
+                // MySQL
+                $sql = "SHOW COLUMNS FROM `" . $this->table . "` LIKE :name";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([':name' => $name]);
+                $itog = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($itog === false)
+                    return false;
+                else
+                    static::$check_column_table_cache[$c_key][$name] = true;
+            }
             static::$cache_is_modified = true;
             return static::$check_column_table_cache[$c_key][$name];
         } catch (PDOException $e) {
@@ -1190,23 +1216,50 @@ class db
         if (!is_null(static::$pdo))
             return static::$pdo;
         $pdo_auth = static::$pdo_auth;
-        if (!isset($pdo_auth["host"]))
-            ext_tools::error("Не указаны данные авторизации PDO");
-        $dsn = "mysql:host={$pdo_auth['host']};charset=utf8mb4";
-        try {
-            static::$pdo = new PDO($dsn, $pdo_auth["user"], $pdo_auth["password"]);
-            static::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-            static::$pdo->exec("set character_set_client = 'utf8mb4'");
-            static::$pdo->exec("set character_set_results = 'utf8mb4'");
-            static::$pdo->exec("set collation_connection = 'utf8mb4_general_ci'");
-            static::$pdo->exec("SET lc_time_names = 'ru_UA'");
-            $select_status = static::$pdo->exec("USE `{$pdo_auth['db_name']}`");
-            if ($select_status === false)
-                static::set_db_name($pdo_auth["db_name"]);
-        } catch (PDOException $e) {
-            ext_tools::error("Ошибка подключения: " . $e->getMessage());
+
+        // Определяем драйвер: SQLite или MySQL
+        $driver = isset($pdo_auth['driver']) ? $pdo_auth['driver'] : 'mysql';
+
+        if ($driver === 'sqlite') {
+            // SQLite подключение
+            $db_path = isset($pdo_auth['db_path']) ? $pdo_auth['db_path'] : ':memory:';
+            $dsn = "sqlite:$db_path";
+            try {
+                static::$pdo = new PDO($dsn);
+                static::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                // Для SQLite не нужно выполнять USE DATABASE
+            } catch (PDOException $e) {
+                ext_tools::error("Ошибка подключения SQLite: " . $e->getMessage());
+            }
+        } else {
+            // MySQL подключение (по умолчанию)
+            if (!isset($pdo_auth["host"]))
+                ext_tools::error("Не указаны данные авторизации PDO");
+            $dsn = "mysql:host={$pdo_auth['host']};charset=utf8mb4";
+            try {
+                static::$pdo = new PDO($dsn, $pdo_auth["user"], $pdo_auth["password"]);
+                static::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                static::$pdo->exec("set character_set_client = 'utf8mb4'");
+                static::$pdo->exec("set character_set_results = 'utf8mb4'");
+                static::$pdo->exec("set collation_connection = 'utf8mb4_general_ci'");
+                static::$pdo->exec("SET lc_time_names = 'ru_UA'");
+                $select_status = static::$pdo->exec("USE `{$pdo_auth['db_name']}`");
+                if ($select_status === false)
+                    static::set_db_name($pdo_auth["db_name"]);
+            } catch (PDOException $e) {
+                ext_tools::error("Ошибка подключения: " . $e->getMessage());
+            }
         }
         return static::$pdo;
+    }
+
+    /**
+     * Определяет тип драйвера БД (mysql или sqlite)
+     * @return string
+     */
+    static function get_driver()
+    {
+        return isset(static::$pdo_auth['driver']) ? static::$pdo_auth['driver'] : 'mysql';
     }
 
     /** Небезопасная функция, то что вы передаете в параметр $sql никак не фильтруется
@@ -1234,16 +1287,27 @@ class db
 
     static function check_table($check_table)
     {
-        $c_key = static::$pdo_auth['db_name'] . '.' . $check_table;
+        $db_name = isset(static::$pdo_auth['db_name']) ? static::$pdo_auth['db_name'] : 'sqlite';
+        $c_key = $db_name . '.' . $check_table;
         if (!is_null(static::$check_column_table_cache) && isset(static::$check_column_table_cache[$c_key]))
             return true;
         $pdo = static::get_pdo();
         $check_table = ext_tools::xss_filter($check_table);
+        $driver = static::get_driver();
+
         try {
-            $stmt = $pdo->query("SHOW COLUMNS FROM `$check_table`");
-            if ($stmt && $stmt->fetch(PDO::FETCH_ASSOC))
-                return true;
-            return false;
+            if ($driver === 'sqlite') {
+                // SQLite использует другой синтаксис для проверки таблиц
+                $stmt = $pdo->prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=:table_name");
+                $stmt->execute([':table_name' => $check_table]);
+                return $stmt->fetch(PDO::FETCH_ASSOC) !== false;
+            } else {
+                // MySQL
+                $stmt = $pdo->query("SHOW COLUMNS FROM `$check_table`");
+                if ($stmt && $stmt->fetch(PDO::FETCH_ASSOC))
+                    return true;
+                return false;
+            }
         } catch (PDOException $e) {
             return false;
         }
@@ -1251,6 +1315,12 @@ class db
 
     static function check_db_name($db_name)
     {
+        $driver = static::get_driver();
+        if ($driver === 'sqlite') {
+            // Для SQLite не используется понятие баз данных
+            return true;
+        }
+
         $pdo = static::get_pdo();
         $db_name = ext_tools::xss_filter($db_name);
         try {
@@ -1264,6 +1334,12 @@ class db
 
     static function set_db_name($db_name, $_pdo = null)
     {
+        $driver = static::get_driver();
+        if ($driver === 'sqlite') {
+            // Для SQLite не используется понятие баз данных
+            return;
+        }
+
         $pdo = is_null($_pdo) ? static::get_pdo() : $_pdo;
         static::$check_column_table_cache = null;
         $db_name = ext_tools::xss_filter($db_name);
@@ -1286,13 +1362,24 @@ class db
     {
         $pdo = static::get_pdo();
         $table = ext_tools::xss_filter($table);
-        $table_prefix = static::$pdo_auth['table_prefix'];
+        $table_prefix = isset(static::$pdo_auth['table_prefix']) ? static::$pdo_auth['table_prefix'] : '';
         if (!empty($table_prefix))
             $table = $table_prefix . $table;
         if (!static::check_table($table)) {
-            $sql = "CREATE TABLE IF NOT EXISTS `$table` (`id` BIGINT(255) UNSIGNED NOT NULL, `_order` BIGINT(255) UNSIGNED NOT NULL, UNIQUE `id` (`id`), INDEX `_order` (`_order`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+            $driver = static::get_driver();
+            if ($driver === 'sqlite') {
+                // SQLite синтаксис (без ENGINE, CHARSET, и используем INTEGER вместо BIGINT)
+                $sql = "CREATE TABLE IF NOT EXISTS `$table` (`id` INTEGER NOT NULL, `_order` INTEGER NOT NULL, UNIQUE(`id`))";
+            } else {
+                // MySQL синтаксис
+                $sql = "CREATE TABLE IF NOT EXISTS `$table` (`id` BIGINT(255) UNSIGNED NOT NULL, `_order` BIGINT(255) UNSIGNED NOT NULL, UNIQUE `id` (`id`), INDEX `_order` (`_order`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+            }
             try {
                 $pdo->exec($sql);
+                // Для SQLite создаем индекс отдельно
+                if ($driver === 'sqlite') {
+                    $pdo->exec("CREATE INDEX IF NOT EXISTS `{$table}__order_idx` ON `$table` (`_order`)");
+                }
             } catch (PDOException $e) {
                 ext_tools::error($e->getMessage() . " sql:" . $sql);
             }
@@ -1322,12 +1409,28 @@ class db
         $name = $column;
         $pdo = static::get_pdo();
         $name = ext_tools::xss_filter($name);
-        $sql = "SHOW COLUMNS FROM `$this->table` LIKE :name";
+        $driver = static::get_driver();
+
         try {
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute([':name' => $name]);
-            $itog = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $itog ? $itog['Type'] : null;
+            if ($driver === 'sqlite') {
+                // SQLite использует PRAGMA для получения информации о колонках
+                $sql = "PRAGMA table_info(`$this->table`)";
+                $stmt = $pdo->query($sql);
+                $columns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($columns as $col) {
+                    if ($col['name'] === $name) {
+                        return $col['type'];
+                    }
+                }
+                return null;
+            } else {
+                // MySQL
+                $sql = "SHOW COLUMNS FROM `$this->table` LIKE :name";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([':name' => $name]);
+                $itog = $stmt->fetch(PDO::FETCH_ASSOC);
+                return $itog ? $itog['Type'] : null;
+            }
         } catch (PDOException $e) {
             ext_tools::error($e->getMessage() . " sql:" . $sql);
         }
@@ -1337,51 +1440,98 @@ class db
     {
         $name = $column;
         static::$check_column_table_cache = null;
+        $driver = static::get_driver();
         $sql = '';
-        switch ($type) {
-            case type_column::small_string:
-                $sql = "ALTER TABLE `$this->table` ADD `$name` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL";
-                break;
-            case type_column::string:
-                $sql = "ALTER TABLE `$this->table` ADD `$name` LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL";
-                break;
-            case type_column::decimal_auto:
-                $tmp_decimal_size = ext_tools::decimal_size("1");
-                $tmp_int_size = $tmp_decimal_size[0];
-                $tmp_scale_size = $tmp_decimal_size[1];
-                $sql = "ALTER TABLE `$this->table` ADD `$name` DECIMAL($tmp_int_size,$tmp_scale_size) NULL DEFAULT NULL";
-                break;
-            case type_column::int:
-                $sql = "ALTER TABLE `$this->table` ADD `$name` INT(255) NULL DEFAULT NULL";
-                break;
-            case type_column::big_int:
-                $sql = "ALTER TABLE `$this->table` ADD `$name` BIGINT(255) NULL DEFAULT NULL";
-                break;
-            case type_column::unsigned_int:
-                $sql = "ALTER TABLE `$this->table` ADD `$name` INT(255) UNSIGNED NULL DEFAULT NULL";
-                break;
-            case type_column::unsigned_big_int:
-                $sql = "ALTER TABLE `$this->table` ADD `$name` BIGINT(255) UNSIGNED NULL DEFAULT NULL";
-                break;
-            case type_column::bool:
-                $sql = "ALTER TABLE `$this->table` ADD `$name` BOOLEAN NULL DEFAULT NULL";
-                break;
-            case type_column::datetime:
-                $sql = "ALTER TABLE `$this->table` ADD `$name` DATETIME NULL DEFAULT NULL";
-                break;
-        }
-        if ($is_add_index)
+
+        if ($driver === 'sqlite') {
+            // SQLite синтаксис (без CHARACTER SET, COLLATE, UNSIGNED)
             switch ($type) {
-                case type_column::string:
-                    $sql .= ", ADD FULLTEXT `$name` (`$name`)";
+                case type_column::small_string:
+                    $sql = "ALTER TABLE `$this->table` ADD COLUMN `$name` VARCHAR(255) DEFAULT NULL";
                     break;
-                default:
-                    $sql .= ", ADD INDEX `$name` (`$name`)";
+                case type_column::string:
+                    $sql = "ALTER TABLE `$this->table` ADD COLUMN `$name` TEXT DEFAULT NULL";
+                    break;
+                case type_column::decimal_auto:
+                    $tmp_decimal_size = ext_tools::decimal_size("1");
+                    $tmp_int_size = $tmp_decimal_size[0];
+                    $tmp_scale_size = $tmp_decimal_size[1];
+                    $sql = "ALTER TABLE `$this->table` ADD COLUMN `$name` DECIMAL($tmp_int_size,$tmp_scale_size) DEFAULT NULL";
+                    break;
+                case type_column::int:
+                case type_column::unsigned_int:
+                    $sql = "ALTER TABLE `$this->table` ADD COLUMN `$name` INTEGER DEFAULT NULL";
+                    break;
+                case type_column::big_int:
+                case type_column::unsigned_big_int:
+                    $sql = "ALTER TABLE `$this->table` ADD COLUMN `$name` INTEGER DEFAULT NULL";
+                    break;
+                case type_column::bool:
+                    $sql = "ALTER TABLE `$this->table` ADD COLUMN `$name` INTEGER DEFAULT NULL";
+                    break;
+                case type_column::datetime:
+                    $sql = "ALTER TABLE `$this->table` ADD COLUMN `$name` TEXT DEFAULT NULL";
                     break;
             }
+        } else {
+            // MySQL синтаксис
+            switch ($type) {
+                case type_column::small_string:
+                    $sql = "ALTER TABLE `$this->table` ADD `$name` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL";
+                    break;
+                case type_column::string:
+                    $sql = "ALTER TABLE `$this->table` ADD `$name` LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL";
+                    break;
+                case type_column::decimal_auto:
+                    $tmp_decimal_size = ext_tools::decimal_size("1");
+                    $tmp_int_size = $tmp_decimal_size[0];
+                    $tmp_scale_size = $tmp_decimal_size[1];
+                    $sql = "ALTER TABLE `$this->table` ADD `$name` DECIMAL($tmp_int_size,$tmp_scale_size) NULL DEFAULT NULL";
+                    break;
+                case type_column::int:
+                    $sql = "ALTER TABLE `$this->table` ADD `$name` INT(255) NULL DEFAULT NULL";
+                    break;
+                case type_column::big_int:
+                    $sql = "ALTER TABLE `$this->table` ADD `$name` BIGINT(255) NULL DEFAULT NULL";
+                    break;
+                case type_column::unsigned_int:
+                    $sql = "ALTER TABLE `$this->table` ADD `$name` INT(255) UNSIGNED NULL DEFAULT NULL";
+                    break;
+                case type_column::unsigned_big_int:
+                    $sql = "ALTER TABLE `$this->table` ADD `$name` BIGINT(255) UNSIGNED NULL DEFAULT NULL";
+                    break;
+                case type_column::bool:
+                    $sql = "ALTER TABLE `$this->table` ADD `$name` BOOLEAN NULL DEFAULT NULL";
+                    break;
+                case type_column::datetime:
+                    $sql = "ALTER TABLE `$this->table` ADD `$name` DATETIME NULL DEFAULT NULL";
+                    break;
+            }
+        }
+
         $pdo = static::get_pdo();
         try {
             $pdo->exec($sql);
+
+            // Создаем индекс отдельно для обоих драйверов
+            if ($is_add_index) {
+                if ($driver === 'sqlite') {
+                    // SQLite не поддерживает FULLTEXT, создаем обычный индекс
+                    $index_sql = "CREATE INDEX IF NOT EXISTS `{$this->table}_{$name}_idx` ON `$this->table` (`$name`)";
+                    $pdo->exec($index_sql);
+                } else {
+                    // MySQL - добавляем индекс в том же запросе
+                    switch ($type) {
+                        case type_column::string:
+                            $index_sql = "ALTER TABLE `$this->table` ADD FULLTEXT `$name` (`$name`)";
+                            break;
+                        default:
+                            $index_sql = "ALTER TABLE `$this->table` ADD INDEX `$name` (`$name`)";
+                            break;
+                    }
+                    $pdo->exec($index_sql);
+                }
+            }
         } catch (PDOException $e) {
             ext_tools::error($e->getMessage() . " sql:" . $sql);
         }
@@ -1391,7 +1541,8 @@ class db
     {
         $name = $column;
         $pdo = static::get_pdo();
-        $c_key = static::$pdo_auth['db_name'] . '.' . $this->table;
+        $db_name = isset(static::$pdo_auth['db_name']) ? static::$pdo_auth['db_name'] : 'sqlite';
+        $c_key = $db_name . '.' . $this->table;
         if (isset(static::$check_column_table_cache[$c_key]) && isset(static::$check_column_table_cache[$c_key][$name]))
             unset(static::$check_column_table_cache[$c_key][$name]);
         $name = ext_tools::xss_filter($name);
@@ -1544,6 +1695,13 @@ class db
 
     private function adjust_decimal_column($name, $value)
     {
+        $driver = static::get_driver();
+
+        // SQLite не требует изменения размера DECIMAL - он хранит как REAL или TEXT
+        if ($driver === 'sqlite') {
+            return;
+        }
+
         $pdo = static::get_pdo();
         $tmp_decimal_size = ext_tools::decimal_size($value);
         $tmp_int_size = $tmp_decimal_size[0];
