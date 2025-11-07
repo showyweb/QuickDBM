@@ -1,5 +1,7 @@
-.QuickDBM_cache
-.idea
 /vendor/
-/composer.lock
 .DS_Store
+.idea/
+.env
+composer.lock
+.phpunit.result.cache
+coverage/
