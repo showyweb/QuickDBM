@@ -1,13 +1,4 @@
 <?php
-/**
- * Name:    SHOWYWeb QuickDBM
- * Version: 4.5.3
- * Author:  Novojilov Pavel Andreevich
- * Support: https://github.com/showyweb/QuickDBM
- * License: MIT license. http://www.opensource.org/licenses/mit-license.php
- * Copyright (c) 2017 Pavel Novojilov
- */
-
 namespace showyweb\qdbm;
 
 use PDO;
