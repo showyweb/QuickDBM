@@ -9,7 +9,7 @@ composer require showyweb/quick-dbm
 <?php
 require_once 'vendor/autoload.php';
 use showyweb\qdbm\{db, schema, type_column, ext_tools as et, where, select_q, select_exp, left_join_on, order, filter_type};
-db::set_mysqli_auth([
+db::set_pdo_auth([
         'db_name' => '',
         'host' => '',
         'user' => '',

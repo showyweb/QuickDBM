@@ -1155,6 +1155,7 @@ class db
             ext_tools::save_to_text_file(static::$path_cache, $str, null);
         }
         static::$check_column_table_cache = null;
+        $this->commit();
     }
 
     function check_column($column)
