@@ -1,4 +1,5 @@
 <?php
+
 namespace showyweb\qdbm;
 
 use PDO;
@@ -94,9 +95,10 @@ class ext_tools
         foreach ($chr_to_escape_arr as $chr) {
             $patterns_chr_to_escape[] = "/$chr/uim";
         }
-        return ['chr_to_escape_arr'=> $chr_to_escape_arr, 'patterns_chr_to_escape' => $patterns_chr_to_escape, 'code_escape_arr'=> $code_escape_arr];
+        return ['chr_to_escape_arr' => $chr_to_escape_arr, 'patterns_chr_to_escape' => $patterns_chr_to_escape, 'code_escape_arr' => $code_escape_arr];
 
     }
+
     static function characters_escape($variable)
     {
         $chr_arr = static::prepare_chr_to_escape();
@@ -1235,6 +1237,9 @@ class db
                 static::$pdo->exec("set character_set_results = 'utf8mb4'");
                 static::$pdo->exec("set collation_connection = 'utf8mb4_general_ci'");
                 static::$pdo->exec("SET lc_time_names = 'ru_UA'");
+                static::$pdo->exec("SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+                static::$pdo->exec("SET SESSION innodb_lock_wait_timeout = 5"); // Таймаут блокировки 5 сек
+                static::$pdo->exec("SET SESSION lock_wait_timeout = 5"); // Общий таймаут
                 $select_status = static::$pdo->exec("USE `{$pdo_auth['db_name']}`");
                 if ($select_status === false)
                     static::set_db_name($pdo_auth["db_name"]);
@@ -1564,9 +1569,16 @@ class db
      */
     function get_new_insert_id($is_auto_transaction = true)
     {
-        if ($is_auto_transaction)
-            $this->begin_transaction();
+
         $sql = "SELECT `id` FROM `$this->table` ORDER BY `id` DESC LIMIT 1";
+        if ($is_auto_transaction) {
+            $this->begin_transaction();
+            // SQLite не поддерживает FOR UPDATE, но обеспечивает блокировку через транзакции
+            $driver = db::get_driver();
+            if ($driver !== 'sqlite') {
+                $sql .= " FOR UPDATE";
+            }
+        }
         $pdo = static::get_pdo();
         try {
             $stmt = $pdo->query($sql);
@@ -1598,18 +1610,18 @@ class db
                 $stmt->execute([':id' => $id]);
                 $itog = $stmt->fetch(PDO::FETCH_ASSOC);
                 if (!$itog) {
-                    $tmp_tr = static::$transaction_active;
-                    if (!$tmp_tr)
+                    $use_tmp_tr = empty($id) && !static::$transaction_active && !static::$write_locked;
+                    if ($use_tmp_tr)
                         $this->begin_transaction();
                     $_order = ($id == 1) ? 1 : $this->get_max_order() + 1;
                     $sql = "INSERT INTO `$this->table` (`id`, `_order`) VALUES (:id, :_order)";
                     $stmt = $pdo->prepare($sql);
                     $stmt->execute([':id' => $id, ':_order' => $_order]);
-                    if (!$tmp_tr)
+                    if ($use_tmp_tr)
                         $this->commit();
                 }
             } catch (PDOException $e) {
-                if (!$tmp_tr)
+                if ($use_tmp_tr)
                     $this->rollback();
                 ext_tools::error($e->getMessage() . " sql:" . $sql);
             }
@@ -1866,7 +1878,7 @@ class db
      */
     static function s_smart_write_lock($this_table = null)
     {
-        if (static::$write_locked) {
+        if (static::$write_locked || static::$transaction_active) {
             if (in_array($this_table, static::$write_locked_arr))
                 return;
             ext_tools::error("Re-lock is forbidden");
@@ -1941,6 +1953,9 @@ class db
      */
     static function s_begin_transaction()
     {
+        if (static::$write_locked) {
+            ext_tools::error("Re-lock is forbidden");
+        }
         $pdo = static::get_pdo();
         try {
             if (static::$transaction_level === 0) {
