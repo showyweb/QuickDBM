@@ -1195,13 +1195,37 @@ class db
                 $itog = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($itog === false)
                     return false;
-                else
-                    static::$check_column_table_cache[$c_key][$name] = true;
+
+                // Проверка AUTO_INCREMENT для столбца id в MySQL
+                if ($name === 'id' && $itog !== false) {
+                    $extra = isset($itog['Extra']) ? $itog['Extra'] : '';
+                    if (stripos($extra, 'auto_increment') === false) {
+                        // AUTO_INCREMENT отсутствует, добавляем
+                        $this->add_autoincrement_to_id_mysql();
+                    }
+                }
+
+                static::$check_column_table_cache[$c_key][$name] = true;
             }
             static::$cache_is_modified = true;
             return static::$check_column_table_cache[$c_key][$name];
         } catch (PDOException $e) {
             ext_tools::error($e->getMessage() . " sql:" . $sql);
+        }
+    }
+
+    private function add_autoincrement_to_id_mysql()
+    {
+        $pdo = static::get_pdo();
+        $table = $this->table;
+
+        try {
+            // Изменяем столбец id, добавляя AUTO_INCREMENT
+            $pdo->exec("ALTER TABLE `$table` ADD PRIMARY KEY(`id`)");
+            $pdo->exec("ALTER TABLE `$table` DROP INDEX `id`");
+            $pdo->exec("ALTER TABLE `$table` MODIFY COLUMN `id` BIGINT(255) UNSIGNED NOT NULL AUTO_INCREMENT");
+        } catch (PDOException $e) {
+            ext_tools::error("Не удалось добавить AUTO_INCREMENT к столбцу id: " . $e->getMessage());
         }
     }
 
@@ -1365,11 +1389,11 @@ class db
         if (!static::check_table($table)) {
             $driver = static::get_driver();
             if ($driver === 'sqlite') {
-                // SQLite синтаксис (без ENGINE, CHARSET, и используем INTEGER вместо BIGINT)
-                $sql = "CREATE TABLE IF NOT EXISTS `$table` (`id` INTEGER NOT NULL, `_order` INTEGER NOT NULL, UNIQUE(`id`))";
+                // SQLite синтаксис (INTEGER PRIMARY KEY AUTOINCREMENT для автоинкремента)
+                $sql = "CREATE TABLE IF NOT EXISTS `$table` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `_order` INTEGER NOT NULL)";
             } else {
-                // MySQL синтаксис
-                $sql = "CREATE TABLE IF NOT EXISTS `$table` (`id` BIGINT(255) UNSIGNED NOT NULL, `_order` BIGINT(255) UNSIGNED NOT NULL, UNIQUE `id` (`id`), INDEX `_order` (`_order`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
+                // MySQL синтаксис с AUTO_INCREMENT для id (PRIMARY KEY обязателен для AUTO_INCREMENT)
+                $sql = "CREATE TABLE IF NOT EXISTS `$table` (`id` BIGINT(255) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, `_order` BIGINT(255) UNSIGNED NOT NULL, INDEX `_order` (`_order`)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4";
             }
             try {
                 $pdo->exec($sql);
@@ -1552,89 +1576,27 @@ class db
         }
     }
 
-    /**
-     * @see get_new_insert_id
-     */
-    function get_nii($is_auto_transaction = true)
-    {
-        return $this->get_new_insert_id($is_auto_transaction);
-    }
-
-    /**
-     * Возвращает новый id для вставки новой записи
-     * @param bool $is_auto_transaction По умолчанию начинает транзакцию, чтобы не возник конфликт вставки с одинаковым id
-     * @return int
-     * @throws \exception
-     * @see begin_transaction
-     */
-    function get_new_insert_id($is_auto_transaction = true)
-    {
-
-        $sql = "SELECT `id` FROM `$this->table` ORDER BY `id` DESC LIMIT 1";
-        if ($is_auto_transaction) {
-            $this->begin_transaction();
-            // SQLite не поддерживает FOR UPDATE, но обеспечивает блокировку через транзакции
-            $driver = db::get_driver();
-            if ($driver !== 'sqlite') {
-                $sql .= " FOR UPDATE";
-            }
-        }
-        $pdo = static::get_pdo();
-        try {
-            $stmt = $pdo->query($sql);
-            $itog = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $itog ? $itog["id"] + 1 : 1;
-        } catch (PDOException $e) {
-            ext_tools::error($e->getMessage() . " sql:" . $sql);
-        }
-    }
 
 
     /**
      * @param array $records Список записей в виде ["column"=>'value', "column2"=>'value2']
-     * @param integer $insert_id Идентификатор строки в таблице. Если строка не найдена, то она вставляется как новая. Если параметр $where, не null, то $insert_id игнорируется
+     * @param integer|null $insert_id Идентификатор строки в таблице. Если null - создается новая запись с AUTO_INCREMENT. Если строка с указанным ID не найдена, то она вставляется. Если параметр $where не null, то $insert_id игнорируется
      * @param where|null $where [optional] Альтернативное условие в запросе, по умолчанию при обновлении записи используется `id`=$insert_id
+     * @return int Возвращает ID вставленной или обновленной записи
      * @throws \exception
      */
-    function insert($records, $insert_id, where $where = null)
+    function insert($records, $insert_id = null, where $where = null)
     {
         $pdo = static::get_pdo();
-        $id = ext_tools::xss_filter($insert_id);
-        if (is_null($where)) {
-            if (is_null($id))
-                ext_tools::error('id null');
 
-            $sql = "SELECT `id` FROM `$this->table` WHERE `id` = :id LIMIT 1";
-            try {
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([':id' => $id]);
-                $itog = $stmt->fetch(PDO::FETCH_ASSOC);
-                if (!$itog) {
-                    $use_tmp_tr = empty($id) && !static::$transaction_active && !static::$write_locked;
-                    if ($use_tmp_tr)
-                        $this->begin_transaction();
-                    $_order = ($id == 1) ? 1 : $this->get_max_order() + 1;
-                    $sql = "INSERT INTO `$this->table` (`id`, `_order`) VALUES (:id, :_order)";
-                    $stmt = $pdo->prepare($sql);
-                    $stmt->execute([':id' => $id, ':_order' => $_order]);
-                    if ($use_tmp_tr)
-                        $this->commit();
-                }
-            } catch (PDOException $e) {
-                if ($use_tmp_tr)
-                    $this->rollback();
-                ext_tools::error($e->getMessage() . " sql:" . $sql);
-            }
-        }
-
-        $sql = "UPDATE `$this->table` SET ";
-        $params = [];
-        $i = 0;
+        // Обработка и санитизация данных записей
+        $processed_records = [];
         foreach ($records as $key => $value) {
             $column_inf = $this->columns[$key];
             $name = ext_tools::xss_filter($column_inf['name']);
             $type = $column_inf['type'];
             $is_xss_filter = $column_inf['is_xss_filter'];
+
             switch ($type) {
                 case type_column::small_string:
                 case type_column::string:
@@ -1663,18 +1625,122 @@ class db
                 $this->adjust_decimal_column($name, $value);
             }
 
+            $processed_records[$name] = ($value === "" || $value === 0) ? null : $value;
+        }
+
+        // Если insert_id = null, создаём новую запись через INSERT с AUTO_INCREMENT
+        if (is_null($insert_id) && is_null($where)) {
+            $use_tmp_tr = !static::$transaction_active && !static::$write_locked;
+            if ($use_tmp_tr)
+                $this->begin_transaction();
+
+            try {
+                // Универсальный подход для MySQL и SQLite: INSERT + UPDATE
+                // (попытки оптимизировать до одного запроса не дали результата из-за ограничений AUTO_INCREMENT)
+                $columns = array_keys($processed_records);
+                $columns[] = '_order';
+                $processed_records['_order'] = 0;
+
+                $column_names = '`' . implode('`, `', $columns) . '`';
+                $placeholders = ':' . implode(', :', $columns);
+
+                $sql = "INSERT INTO `$this->table` ($column_names) VALUES ($placeholders)";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($processed_records);
+
+                $new_id = $pdo->lastInsertId();
+
+                // Устанавливаем _order = id (2-й запрос неизбежен, т.к. id неизвестен до вставки)
+                $sql = "UPDATE `$this->table` SET `_order` = :id WHERE `id` = :id";
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute([':id' => $new_id]);
+
+                if ($use_tmp_tr)
+                    $this->commit();
+
+                return intval($new_id);
+            } catch (PDOException $e) {
+                if ($use_tmp_tr)
+                    $this->rollback();
+                ext_tools::error($e->getMessage() . " sql:" . $sql);
+            }
+        }
+
+        // Если insert_id указан, используем UPSERT для оптимизации
+        $id = ext_tools::xss_filter($insert_id);
+
+        if (is_null($where)) {
+            if (is_null($id))
+                ext_tools::error('id null');
+
+            // ОПТИМИЗАЦИЯ: используем INSERT ... ON DUPLICATE KEY UPDATE (MySQL)
+            // или INSERT ... ON CONFLICT (SQLite) для одного запроса вместо SELECT + INSERT + UPDATE
+            $driver = static::get_driver();
+
+            try {
+                $use_tmp_tr = !static::$transaction_active && !static::$write_locked;
+                if ($use_tmp_tr)
+                    $this->begin_transaction();
+
+                // Добавляем id и _order в данные
+                $processed_records['id'] = $id;
+                $processed_records['_order'] = $id;
+
+                $columns = array_keys($processed_records);
+                $column_names = '`' . implode('`, `', $columns) . '`';
+                $placeholders = ':' . implode(', :', $columns);
+
+                if ($driver === 'sqlite') {
+                    // SQLite: INSERT OR REPLACE (или INSERT ... ON CONFLICT)
+                    $sql = "INSERT INTO `$this->table` ($column_names) VALUES ($placeholders)
+                            ON CONFLICT(`id`) DO UPDATE SET ";
+
+                    $update_parts = [];
+                    foreach ($processed_records as $col_name => $value) {
+                        if ($col_name === 'id') continue; // Не обновляем id
+                        $update_parts[] = "`$col_name` = :$col_name";
+                    }
+                    $sql .= implode(', ', $update_parts);
+                } else {
+                    // MySQL: INSERT ... ON DUPLICATE KEY UPDATE
+                    $sql = "INSERT INTO `$this->table` ($column_names) VALUES ($placeholders)
+                            ON DUPLICATE KEY UPDATE ";
+
+                    $update_parts = [];
+                    foreach ($processed_records as $col_name => $value) {
+                        if ($col_name === 'id') continue; // Не обновляем id
+                        $update_parts[] = "`$col_name` = VALUES(`$col_name`)";
+                    }
+                    $sql .= implode(', ', $update_parts);
+                }
+
+                $stmt = $pdo->prepare($sql);
+                $stmt->execute($processed_records);
+
+                if ($use_tmp_tr)
+                    $this->commit();
+
+                return intval($id);
+            } catch (PDOException $e) {
+                if (isset($use_tmp_tr) && $use_tmp_tr)
+                    $this->rollback();
+                ext_tools::error($e->getMessage() . " sql:" . $sql);
+            }
+        }
+
+        // Если используется where - старая логика через UPDATE
+        $sql = "UPDATE `$this->table` SET ";
+        $params = [];
+        $i = 0;
+        foreach ($processed_records as $name => $value) {
             $sql .= ($i > 0 ? ", " : "") . "`$name` = :set_$name";
-            $params[":set_$name"] = ($value === "" || $value === 0) ? null : $value;
+            $params[":set_$name"] = $value;
             $i++;
         }
-        if (is_null($where)) {
-            $sql .= " WHERE `id` = :where_id";
-            $params[":where_id"] = $id;
-        } else {
-            $where_data = $where->_get('where_');
-            $sql .= " WHERE " . $where_data['sql'];
-            $params = array_merge($params, $where_data['params']);
-        }
+
+        $where_data = $where->_get('where_');
+        $sql .= " WHERE " . $where_data['sql'];
+        $params = array_merge($params, $where_data['params']);
 
         try {
             $stmt = $pdo->prepare($sql);
@@ -1682,20 +1748,10 @@ class db
         } catch (PDOException $e) {
             ext_tools::error($e->getMessage() . " sql:" . $sql);
         }
+
+        return intval($id);
     }
 
-    private function get_max_order()
-    {
-        $pdo = static::get_pdo();
-        $sql = "SELECT MAX(`_order`) AS order_max FROM `$this->table`";
-        try {
-            $stmt = $pdo->query($sql);
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-            return $result['order_max'] ?? 0;
-        } catch (PDOException $e) {
-            ext_tools::error($e->getMessage() . " sql:" . $sql);
-        }
-    }
 
     private function adjust_decimal_column($name, $value)
     {
@@ -2234,10 +2290,6 @@ class db
     private function group($id = null, $title, $description, $parent_id, $group_type, $column = null)
     {
         $db = $this->get_gf_db();
-        $new_id = $db->get_nii();
-        if ($id != null)
-            $new_id = $id;
-        $new_id = intval($new_id);
         $records = [
             'title' => $title,
             'description' => $description,
@@ -2268,7 +2320,7 @@ class db
                     $column_type = type_column::small_string;
                     break;
             }
-        $db->insert($records, $new_id);
+        $new_id = $db->insert($records, $id);
         if (!is_null($column_type)) {
             if (is_null($column))
                 $column = "filter_" . $new_id;
@@ -2374,10 +2426,6 @@ class db
     private function get_group_any_type($id)
     {
         $db = $this->get_gf_db();
-        $new_id = $db->get_nii(false);
-        if ($new_id == 1) {
-            return null;
-        }
         $id = ext_tools::xss_filter($id);
         $where = new where();
         $where->equally('id', $id);
@@ -2400,10 +2448,6 @@ class db
     {
         $parent_id = intval($parent_id);
         $db = $this->get_gf_db();
-        $new_id = $db->get_nii(false);
-        if ($new_id == 1) {
-            return null;
-        }
         $where_main = new where();
         $where_main->equally('parent_id', $parent_id);
 
@@ -2429,11 +2473,6 @@ class db
     {
         $group_id = intval($group_id);
         $db = $this->get_gf_db();
-        $new_id = $db->get_nii(false);
-        if ($new_id == 1) {
-            return null;
-        }
-
         $where_main = new where();
         $where_main->equally('parent_id', $group_id);
         $where_main->equally('parent_id', 0, false);
@@ -2499,10 +2538,6 @@ class db
     public function group_move_order($from, $to)
     {
         $db = $this->get_gf_db();
-        $new_id = $db->get_nii();
-        if ($new_id == 1) {
-            return null;
-        }
         $db->move_order($from, $to);
         return true;
     }
@@ -2510,10 +2545,6 @@ class db
     public function group_move_orders(array $ids, array $from, array $to)
     {
         $db = $this->get_gf_db();
-        $new_id = $db->get_nii();
-        if ($new_id == 1) {
-            return null;
-        }
         $db->move_orders($ids, $from, $to);
         return true;
     }

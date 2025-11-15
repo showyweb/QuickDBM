@@ -132,13 +132,32 @@ class DatabaseTest extends TestCase
     }
 
     /**
-     * Тест получения нового ID для вставки
+     * Тест вставки записи с AUTO_INCREMENT
      */
-    public function testGetNewInsertId()
+    public function testAutoIncrementInsert()
     {
-        $newId = self::$db->get_nii();
+        $record = [
+            'name' => 'Auto ID Product',
+            'price' => 1000,
+            'quantity' => 25,
+            'is_available' => true,
+            'description' => 'This product uses AUTO_INCREMENT'
+        ];
+
+        $newId = self::$db->insert($record);
         $this->assertIsInt($newId);
         $this->assertGreaterThan(0, $newId);
+
+        // Проверяем, что запись добавлена
+        $where = new where();
+        $where->equally('id', $newId, true, null, true, false);
+        $result = self::$db->get_rows(new select_q(null, $where));
+
+        $this->assertNotNull($result);
+        $this->assertCount(1, $result);
+        $this->assertEquals('Auto ID Product', $result[0]['name']);
+        // Проверяем, что _order равен id
+        $this->assertEquals($newId, $result[0]['_order'], '_order should equal id');
     }
 
     /**
@@ -146,7 +165,6 @@ class DatabaseTest extends TestCase
      */
     public function testInsertRecord()
     {
-        $newId = self::$db->get_nii();
         $record = [
             'name' => 'Test Product',
             'price' => 1000,
@@ -155,7 +173,7 @@ class DatabaseTest extends TestCase
             'description' => 'This is a test product'
         ];
 
-        self::$db->insert($record, $newId);
+        $newId = self::$db->insert($record);
 
         // Проверяем, что запись добавлена
         $where = new where();
@@ -167,6 +185,8 @@ class DatabaseTest extends TestCase
         $this->assertCount(1, $result);
         $this->assertEquals('Test Product', $result[0]['name']);
         $this->assertEquals(1000, $result[0]['price']);
+        // Проверяем, что _order равен id
+        $this->assertEquals($newId, $result[0]['_order'], '_order should equal id');
     }
 
     /**
@@ -176,7 +196,6 @@ class DatabaseTest extends TestCase
     {
         // Вставим несколько записей
         for ($i = 1; $i <= 3; $i++) {
-            $newId = self::$db->get_nii();
             $record = [
                 'name' => "Product $i",
                 'price' => $i * 100,
@@ -184,7 +203,7 @@ class DatabaseTest extends TestCase
                 'is_available' => true,
                 'description' => "Description for product $i"
             ];
-            self::$db->insert($record, $newId);
+            self::$db->insert($record);
         }
 
         // Получаем все записи
@@ -201,7 +220,6 @@ class DatabaseTest extends TestCase
     public function testGetRecordsWithWhere()
     {
         // Вставим тестовую запись
-        $newId = self::$db->get_nii();
         $record = [
             'name' => 'Expensive Product',
             'price' => 5000,
@@ -209,7 +227,7 @@ class DatabaseTest extends TestCase
             'is_available' => true,
             'description' => 'Very expensive'
         ];
-        self::$db->insert($record, $newId);
+        $newId = self::$db->insert($record);
 
         // Ищем записи с ценой больше 4000
         $where = new where();
@@ -264,7 +282,6 @@ class DatabaseTest extends TestCase
     public function testUpdateRecord()
     {
         // Вставляем запись
-        $newId = self::$db->get_nii();
         $record = [
             'name' => 'Product to Update',
             'price' => 100,
@@ -272,7 +289,7 @@ class DatabaseTest extends TestCase
             'is_available' => true,
             'description' => 'Original description'
         ];
-        self::$db->insert($record, $newId);
+        $newId = self::$db->insert($record);
 
         // Обновляем запись
         $updatedRecord = [
@@ -303,7 +320,6 @@ class DatabaseTest extends TestCase
     public function testRemoveRecords()
     {
         // Вставляем запись для удаления
-        $newId = self::$db->get_nii();
         $record = [
             'name' => 'Product to Delete',
             'price' => 999,
@@ -311,7 +327,7 @@ class DatabaseTest extends TestCase
             'is_available' => true,
             'description' => 'Will be deleted'
         ];
-        self::$db->insert($record, $newId);
+        $newId = self::$db->insert($record);
 
         // Проверяем, что запись существует
         $where = new where();
@@ -335,7 +351,6 @@ class DatabaseTest extends TestCase
         // Вставляем несколько записей с особой ценой
         $testPrice = 77777;
         for ($i = 1; $i <= 3; $i++) {
-            $newId = self::$db->get_nii();
             $record = [
                 'name' => "Temp Product $i",
                 'price' => $testPrice,
@@ -343,7 +358,7 @@ class DatabaseTest extends TestCase
                 'is_available' => true,
                 'description' => "Temporary $i"
             ];
-            self::$db->insert($record, $newId);
+            self::$db->insert($record);
         }
 
         // Удаляем все записи с этой ценой

@@ -52,15 +52,17 @@ class dyn_options //Пример класса с использованием Qu
         if($xss_filter)
             $val = et::xss_filter($val);
         $db = $this->db;
-        $new_id = $db->get_nii();
         $res = $this->get($key, true);
-        if(!is_null($res))
-            $new_id = $res[0]['id'];
         $rec = [
             'key' => $key,
             'val' => $val
         ];
-        $db->insert($rec, $new_id);
+        // Если запись существует - обновляем её, иначе создаём новую
+        if(!is_null($res)) {
+            $db->insert($rec, $res[0]['id']);
+        } else {
+            $db->insert($rec); // AUTO_INCREMENT создаст новый ID
+        }
     }
 
     function del($key)
