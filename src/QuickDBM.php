@@ -1148,7 +1148,7 @@ class db
             ext_tools::save_to_text_file(static::$path_cache, $str, null);
         }
         static::$check_column_table_cache = null;
-        $this->commit();
+        $this::s_commit(true);
     }
 
     function check_column($column)
@@ -2042,7 +2042,7 @@ class db
      * @return bool
      * @throws \exception
      */
-    static function s_commit()
+    static function s_commit($all = false)
     {
         $pdo = static::get_pdo();
         try {
@@ -2051,6 +2051,9 @@ class db
                 if (static::$transaction_level === 0 && static::$transaction_active) {
                     $pdo->commit();
                     static::$transaction_active = false;
+                }
+                if ($all) {
+                    return self::s_commit();
                 }
             }
             return true;
